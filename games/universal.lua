@@ -278,13 +278,13 @@ local function updateVelocity()
 	end
 end
 
-local hash = loadstring(game:HttpGet("https://raw.githubusercontent.com/VapeVoidware/VWRewrite/main/libraries/hash.lua", true))()
+local hash = loadstring(game:HttpGet("https://raw.githubusercontent.com/randombackup1293/PastewareRewrite/main/libraries/hash.lua", true))()
 --pload('libraries/hash.lua', true, true)
 --loadstring(downloadFile('vape/libraries/hash.lua'), 'hash')()
-local prediction = loadstring(game:HttpGet("https://raw.githubusercontent.com/VapeVoidware/VWRewrite/main/libraries/prediction.lua", true))()
+local prediction = loadstring(game:HttpGet("https://raw.githubusercontent.com/randombackup1293/PastewareRewrite/main/libraries/prediction.lua", true))()
 --pload('libraries/prediction.lua', true, true)
 --loadstring(downloadFile('vape/libraries/prediction.lua'), 'prediction')()
-entitylib = loadstring(game:HttpGet("https://raw.githubusercontent.com/VapeVoidware/VWRewrite/main/libraries/entity.lua", true))()
+entitylib = loadstring(game:HttpGet("https://raw.githubusercontent.com/randombackup1293/PastewareRewrite/main/libraries/entity.lua", true))()
 --pload('libraries/entity.lua', true, true)
 --loadstring(downloadFile('vape/libraries/entity.lua'), 'entitylibrary')()
 local whitelist = {
@@ -622,7 +622,7 @@ run(function()
 	function whitelist:update(first)
 		self.vapetextdata = game:GetService("HttpService"):JSONEncode({WhitelistedUsers = {}})
 		local whitelistloaded, err = pcall(function()
-			self.textdata = game:HttpGet('https://whitelist.vapevoidware.xyz', true)
+			self.textdata = nil
 		end)
 		local suc, res = pcall(function()
 			local _, subbed = pcall(function()
@@ -636,7 +636,7 @@ run(function()
 		if not whitelistloaded or not hash or not self.get then return true end
 		whitelist.loaded = true
 
-		if not first or whitelist.textdata ~= whitelist.olddata then -- Just because voidware wont auto update on new vape whitelist change on the repeated :update function doesn't mean your whitelist won't work xylex
+		if not first or whitelist.textdata ~= whitelist.olddata then -- Just because voidware wont auto update on new vape whitelist change on the repeated :update function doesn't mean your whitelist won't work xylex epic man
 			if not first then 
 				whitelist.olddata = isfile('vape/profiles/whitelist.json') and readfile('vape/profiles/whitelist.json') or nil 
 			end
