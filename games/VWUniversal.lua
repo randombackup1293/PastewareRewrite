@@ -1,4 +1,3 @@
-
 repeat task.wait() until game:IsLoaded()
 repeat task.wait() until shared.GuiLibrary
 
@@ -70,8 +69,6 @@ local lplr = game:GetService("Players").LocalPlayer
 local lightingService = game:GetService("Lighting")
 local core
 pcall(function() core = game:GetService('CoreGui') end)
-
---task.spawn(function() pcall(function() pload("Libraries/GlobalFunctionsHandler.lua", false) end) end)
 
 local newcolor = function() return {Hue = 0, Sat = 0, Value = 0} end
 
@@ -154,6 +151,63 @@ run(function()
 	})
 end)
 
+run(function()
+	local WeatherMods = {Enabled = false}
+	local WeatherMode = {Value = "Snow"}
+	local SnowSpread = {Value = 35}
+	local SnowRate = {Value = 28}
+	local SnowHigh = {Value = 100}
+	WeatherMods = vape.Categories.Misc:CreateModule({
+		Name = 'WeatherMods',
+		Tooltip = 'Changes the weather',
+		Function = function(callback) 
+			if callback then
+				task.spawn(function()
+					local snowpart = Instance.new("Part")
+					snowpart.Size = Vector3.new(240,0.5,240)
+					snowpart.Name = "SnowParticle"
+					snowpart.Transparency = 1
+					snowpart.CanCollide = false
+					snowpart.Position = Vector3.new(0,120,286)
+					snowpart.Anchored = true
+					snowpart.Parent = game.Workspace
+					local snow = Instance.new("ParticleEmitter")
+					snow.RotSpeed = NumberRange.new(300)
+					snow.VelocitySpread = SnowSpread.Value
+					snow.Rate = SnowRate.Value
+					snow.Texture = "rbxassetid://8158344433"
+					snow.Rotation = NumberRange.new(110)
+					snow.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0,0.16939899325371,0),NumberSequenceKeypoint.new(0.23365999758244,0.62841498851776,0.37158501148224),NumberSequenceKeypoint.new(0.56209099292755,0.38797798752785,0.2771390080452),NumberSequenceKeypoint.new(0.90577298402786,0.51912599802017,0),NumberSequenceKeypoint.new(1,1,0)})
+					snow.Lifetime = NumberRange.new(8,14)
+					snow.Speed = NumberRange.new(8,18)
+					snow.EmissionDirection = Enum.NormalId.Bottom
+					snow.SpreadAngle = Vector2.new(35,35)
+					snow.Size = NumberSequence.new({NumberSequenceKeypoint.new(0,0,0),NumberSequenceKeypoint.new(0.039760299026966,1.3114800453186,0.32786899805069),NumberSequenceKeypoint.new(0.7554469704628,0.98360699415207,0.44038599729538),NumberSequenceKeypoint.new(1,0,0)})
+					snow.Parent = snowpart
+					local windsnow = Instance.new("ParticleEmitter")
+					windsnow.Acceleration = Vector3.new(0,0,1)
+					windsnow.RotSpeed = NumberRange.new(100)
+					windsnow.VelocitySpread = SnowSpread.Value
+					windsnow.Rate = SnowRate.Value
+					windsnow.Texture = "rbxassetid://8158344433"
+					windsnow.EmissionDirection = Enum.NormalId.Bottom
+					windsnow.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0,0.16939899325371,0),NumberSequenceKeypoint.new(0.23365999758244,0.62841498851776,0.37158501148224),NumberSequenceKeypoint.new(0.56209099292755,0.38797798752785,0.2771390080452),NumberSequenceKeypoint.new(0.90577298402786,0.51912599802017,0),NumberSequenceKeypoint.new(1,1,0)})
+					windsnow.Lifetime = NumberRange.new(8,14)
+					windsnow.Speed = NumberRange.new(8,18)
+					windsnow.Rotation = NumberRange.new(110)
+					windsnow.SpreadAngle = Vector2.new(35,35)
+					windsnow.Size = NumberSequence.new({NumberSequenceKeypoint.new(0,0,0),NumberSequenceKeypoint.new(0.039760299026966,1.3114800453186,0.32786899805069),NumberSequenceKeypoint.new(0.7554469704628,0.98360699415207,0.44038599729538),NumberSequenceKeypoint.new(1,0,0)})
+					windsnow.Parent = snowpart
+					repeat task.wait(); if entityLibrary.isAlive then snowpart.Position = entityLibrary.character.HumanoidRootPart.Position + Vector3.new(0,SnowHigh.Value,0) end until not shared.VapeExecuted
+				end)
+			else for _, v in next, game.Workspace:GetChildren() do if v.Name == "SnowParticle" then v:Remove() end end end
+		end
+	})
+	SnowSpread = WeatherMods:CreateSlider({Name = "Snow Spread", Min = 1, Max = 100, Function = function() end, Default = 35})
+	SnowRate = WeatherMods:CreateSlider({Name = "Snow Rate", Min = 1, Max = 100, Function = function() end, Default = 28})
+	SnowHigh = WeatherMods:CreateSlider({Name = "Snow High", Min = 1, Max = 200, Function = function() end, Default = 100})
+end)
+
 run(function() 
     local function setIconID(iconId)
         local lplr = game:GetService("Players").LocalPlayer
@@ -172,7 +226,7 @@ run(function()
     local CustomIcon = {}
     local IconID = {Value = ""}
     local defaultID = "rbxassetid://18518244636"
-    CustomIcon = vape.Categories.Utility:CreateModule({
+    CustomIcon = vape.Categories.Misc:CreateModule({
         Name = 'CustomPlayerListIcon',
         Function = function(calling)
             if calling then 
@@ -216,7 +270,7 @@ run(function() local Shader = {Enabled = false}
 		ShadowSoftness = lightingService.ShadowSoftness,
 		Ambient = lightingService.Ambient
 	}
-	Shader = vape.Categories.Utility:CreateModule({
+	Shader = vape.Categories.Misc:CreateModule({
 		Name = "RichShader",
 		HoverText = "pro shader",
 		Function = function(callback)
@@ -278,75 +332,12 @@ run(function() local Shader = {Enabled = false}
 		end
 	})
 end)
---[[task.spawn(function()
-	pcall(function()
-		repeat task.wait() until shared.VapeFullyLoaded
-		if shared.GuiLibrary.ObjectsThatCanBeSaved["ChatTagOptionsButton"].Api.Enabled then
-		else
-			repeat task.wait() until shared.vapewhitelist.loaded 
-			if shared.vapewhitelist.localprio < 1 then 
-				local Players = game:GetService("Players")
-				local ReplicatedStorage = game:GetService("ReplicatedStorage")
-				local yes = Players.LocalPlayer.Name
-				local ChatTag = {}
-				ChatTag[yes] =
-					{
-						TagText = "VOIDWARE USER",
-						TagColor = Color3.fromRGB(255, 0, 0),
-					}
-				local oldchanneltab
-				local oldchannelfunc
-				local oldchanneltabs = {}
-				for i, v in pairs(getconnections(ReplicatedStorage.DefaultChatSystemChatEvents.OnNewMessage.OnClientEvent)) do
-					if
-						v.Function
-						and #debug.getupvalues(v.Function) > 0
-						and type(debug.getupvalues(v.Function)[1]) == "table"
-						and getmetatable(debug.getupvalues(v.Function)[1])
-						and getmetatable(debug.getupvalues(v.Function)[1]).GetChannel
-					then
-						oldchanneltab = getmetatable(debug.getupvalues(v.Function)[1])
-						oldchannelfunc = getmetatable(debug.getupvalues(v.Function)[1]).GetChannel
-						getmetatable(debug.getupvalues(v.Function)[1]).GetChannel = function(Self, Name)
-							local tab = oldchannelfunc(Self, Name)
-							if tab and tab.AddMessageToChannel then
-								local addmessage = tab.AddMessageToChannel
-								if oldchanneltabs[tab] == nil then
-									oldchanneltabs[tab] = tab.AddMessageToChannel
-								end
-								tab.AddMessageToChannel = function(Self2, MessageData)
-									if MessageData.FromSpeaker and Players[MessageData.FromSpeaker] then
-										if ChatTag[Players[MessageData.FromSpeaker].Name] then
-											MessageData.ExtraData = {
-												NameColor = Players[MessageData.FromSpeaker].Team == nil and Color3.new(128,0,128)
-													or Players[MessageData.FromSpeaker].TeamColor.Color,
-												Tags = {
-													table.unpack(MessageData.ExtraData.Tags),
-													{
-														TagColor = ChatTag[Players[MessageData.FromSpeaker].Name].TagColor,
-														TagText = ChatTag[Players[MessageData.FromSpeaker].Name].TagText,
-													},
-												},
-											}
-										end
-									end
-									return addmessage(Self2, MessageData)
-								end
-							end
-							return tab
-						end
-					end
-				end	
-			end
-		end
-	end)
-end)--]]
 
 run(function() local chatDisable = {Enabled = false}
 	local chatVersion = function()
 		if game.Chat:GetChildren()[1] then return true else return false end
 	end
-	chatDisable = vape.Categories.Utility:CreateModule({
+	chatDisable = vape.Categories.Misc:CreateModule({
 		Name = "ChatDisable",
 		HoverText = "Disables the chat",
 		Function = function(callback)
@@ -379,7 +370,7 @@ run(function() local CharacterOutline = {}
 	local CharacterOutlineColor = newcolor()
 	local GuiSync = {Enabled = false}
 	local outline = Instance.new('Highlight', GuiLibrary.MainGui)
-	CharacterOutline = vape.Categories.Utility:CreateModule({
+	CharacterOutline = vape.Categories.Misc:CreateModule({
 		Name = 'CharacterOutline',
 		HoverText = 'Adds a cool outline to your character.',
 		Function = function(calling)
@@ -446,60 +437,6 @@ run(function() local CharacterOutline = {}
 	})
 end)
 
-run(function() local CloudMods = {}
-	local CloudNeon = {}
-	local clouds = {}
-	local CloudColor = newcolor()
-	local cloudFunction = function(cloud)
-		pcall(function()
-			cloud.Color = Color3.fromHSV(CloudColor.Hue, CloudColor.Sat, CloudColor.Value)
-			cloud.Material = (CloudNeon.Enabled and Enum.Material.Neon or Enum.Material.SmoothPlastic) 
-		end)
-	end
-	CloudMods = vape.Categories.Utility:CreateModule({
-		Name = 'CloudMods',
-		HoverText = 'Recolorizes the clouds to your liking.',
-		Function = function(calling)
-			if calling then 
-				clouds = game.Workspace:WaitForChild('Clouds'):GetChildren()
-				if not CloudMods.Enabled then 
-					return 
-				end
-				for i,v in next, clouds do 
-					cloudFunction(v)
-				end
-				CloudMods:Clean(game.Workspace.Clouds.ChildAdded:Connect(function(cloud)
-					cloudFunction(cloud)
-					table.insert(clouds, cloud)
-				end))
-			else 
-				for i,v in next, clouds do 
-					pcall(function() 
-						v.Color = Color3.fromRGB(255, 255, 255)
-						v.Material = Enum.Material.SmoothPlastic
-					end) 
-				end
-			end
-		end
-	})
-	CloudColor = CloudMods:CreateColorSlider({
-		Name = 'Color',
-		Function = function()
-			for i,v in next, clouds do 
-				cloudFunction(v)
-			end
-		end
-	})
-	CloudNeon = CloudMods:CreateToggle({
-		Name = 'Neon',
-		Function = function() 
-			for i,v in next, clouds do 
-				cloudFunction(v)
-			end
-		end
-	})
-end)
-
 run(function() 
 	local RestartVoidware = {}
 	RestartVoidware = vape.Categories.Blatant:CreateModule({
@@ -534,7 +471,7 @@ run(function()
 	local CustomJumpMode = {Value = "Normal"}
 	local CustomJumpVelocity = {Value = 50}
 	CustomJump = vape.Categories.Blatant:CreateModule({
-		Name = "InfJUmp",
+		Name = "InfJump",
         HoverText = "Customizes your jumping ability",
 		Function = function(callback)
 			if callback then
@@ -774,7 +711,7 @@ run(function()
         animate.idle.Animation2.AnimationId = AnimList.Animation2[AnimIdleB.Value]
         task.wait(4.5)
     end
-	AnimationChanger = vape.Categories.Utility:CreateModule({
+	AnimationChanger = vape.Categories.Misc:CreateModule({
 		Name = "AnimationChanger",
 		Function = function(callback)
 			if callback then
@@ -934,12 +871,35 @@ run(function()
 			pcall(GuiLibrary.RemoveObject, "VapePrivateDetectorOptionsButton")
 		end
 	end)--]]
-	task.spawn(function()
-		repeat task.wait(1) until vape.Loaded or vape.Loaded == nil
-		if vape.Loaded and not VapePrivateDetector.Enabled then
-			VapePrivateDetector:Toggle()
+end)
+
+run(function() local InfiniteYield = {Enabled = false}
+	InfiniteYield = vape.Categories.Blatant:CreateModule({
+		Name = "InfiniteYield",
+		HoverText = "Loads the Infinite Yield script.",
+		Function = function(callback)
+			if callback then 
+				task.spawn(function()
+					loadstring(game:HttpGet('https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source'))() 
+				end)
+			end
 		end
-	end)
+	})
+end)
+
+run(function() local Dex = {Enabled = false}
+	Dex = vape.Categories.Blatant:CreateModule({
+		Name = "Dex",
+		HoverText = "Loads Dex",
+		Function = function(callback)
+			if callback then 
+				task.spawn(function()
+					loadstring(game:HttpGet("https://raw.githubusercontent.com/infyiff/backup/main/dex.lua"))()
+				end)
+				Dex.ToggleButton()
+			end
+		end
+	})
 end)
 
 local vapeConnections
@@ -965,7 +925,7 @@ run(function()
 	}
 	local customMouseIcon = {Enabled = false}
 	local customIcon = {Value = ''}
-	mouseMod = vape.Categories.Utility:CreateModule({
+	mouseMod = vape.Categories.Misc:CreateModule({
 		Name = 'MouseMod',
 		HoverText = 'Modifies your cursor\'s image.',
 		Function = function(callback)
@@ -1014,70 +974,6 @@ run(function()
 	})
 end)
 
-run(function()
-	local CustomNotification = {Enabled = false}
-	local CustomNotificationMode = {Value = 'Absolute'}
-	local CustomNotificationColor = {
-		Hue = 1,
-		Sat = 1,
-		Value = 0.50
-	}
-	local CustomNotificationPath = {Value = 'assets/InfoNotification.png'}
-	CustomNotification = vape.Categories.Utility:CreateModule({
-		Name = 'CustomNotification',
-        HoverText = 'Customizes vape\'s notification',
-		Function = function(callback)
-			if callback then
-				task.spawn(function()
-					repeat task.wait()
-						if CustomNotificationMode.Value == 'Color' then
-							shared.NotifyColor = Color3.fromHSV(CustomNotificationColor.Hue, CustomNotificationColor.Sat, CustomNotificationColor.Value)
-							shared.NotifyIcon = 'assets/WarningNotification.png'
-						elseif CustomNotificationMode.Value == 'Icon' then
-							shared.NotifyColor = Color3.fromRGB(236, 129, 44)
-							shared.NotifyIcon = CustomNotificationPath.Value
-						elseif CustomNotificationMode.Value == 'Absolute' then
-							shared.NotifyColor = Color3.fromHSV(CustomNotificationColor.Hue, CustomNotificationColor.Sat, CustomNotificationColor.Value)
-							shared.NotifyIcon = CustomNotificationPath.Value
-						end
-					until not CustomNotification.Enabled
-				end)
-			else
-				shared.NotifyColor = Color3.fromRGB(236, 129, 44)
-				shared.NotifyIcon = 'assets/WarningNotification.png'
-			end
-		end,
-		ExtraText = function()
-			return CustomNotificationMode.Value
-		end
-	})
-	CustomNotificationMode = CustomNotification:CreateDropdown({
-		Name = 'Mode',
-		List = {
-			'Color',
-			'Icon',
-			'Absolute'
-		},
-		HoverText = 'Notifcation Mode',
-		Function = function() end,
-	})
-	CustomNotificationColor = CustomNotification:CreateColorSlider({
-		Name = 'Color',
-		HoverText = 'Notification Color',
-		Function = function() end,
-	})
-	CustomNotificationPath = CustomNotification:CreateTextBox({
-		Name = 'IconPath',
-		TempText = 'Icon Path',
-		HoverText = 'Notificatiion Icon Path',
-		FocusLost = function(enter) 
-			if CustomNotification.Enabled then 
-				CustomNotification.ToggleButton(false)
-				CustomNotification.ToggleButton(false)
-			end
-		end
-	})
-end)
 local tween = game:GetService("TweenService")
 local void = function() end
 local runservice = game:GetService("RunService")
@@ -1140,7 +1036,7 @@ run(function()
 		end);
 		return part
 	end;
-	trails = vape.Categories.Utility:CreateModule({
+	trails = vape.Categories.Misc:CreateModule({
 		Name = 'Trails',
 		HoverText = 'cool trail for your character.',
 		Function = function(calling)
@@ -1172,7 +1068,7 @@ end)
 
 run(function() 
 	local AestheticLighting = {}
-	AestheticLighting = vape.Categories.Utility:CreateModule({
+	AestheticLighting = vape.Categories.Misc:CreateModule({
 		Name = 'AestheticLighting',
 		Function = function(callback)
 			if callback then
@@ -1691,4 +1587,48 @@ run(function()
 			end
 		end
 	})
+end)
+
+run(function()
+    local CharacterEditor = {Enabled = true}
+    local RevertTable = {}
+    local ExcludeTable = {ObjectList = {}}
+    local function isExcluded(part)
+        local name = part.Name or tostring(part)
+        for i,v in pairs(ExcludeTable.ObjectList) do
+            name, v = tostring(name), tostring(v)
+            if v == name then return true end
+            if string.lower(name) == string.lower(v) then return end
+        end
+    end
+    local function savePart(part)
+        table.insert(RevertTable, {
+            Part = part,
+            Material = part.Material
+        })
+    end
+    CharacterEditor = vape.Categories.Misc:CreateModule({
+        Name = "TransparentCharacter",
+        Function = function(call)
+            if call then
+                repeat task.wait();
+                    if entityLibrary.isAlive and game:GetService("Players").LocalPlayer.Character and game:GetService("Players").LocalPlayer.Character:IsA("Model") then
+                        for _, part in pairs(game:GetService("Players").LocalPlayer.Character:GetDescendants()) do
+                            if not isExcluded(part) and part:IsA("BasePart") then savePart(part); part.Material = Enum.Material.ForceField end
+                        end
+                    end
+                until (not CharacterEditor.Enabled)
+            else
+				for i,v in pairs(RevertTable) do
+					pcall(function() v.Part.Material = Enum.Material[tostring(v.Material)] end)
+				end
+            end
+        end
+    })
+    CharacterEditor.Restart = function() if CharacterEditor.Enabled then CharacterEditor.ToggleButton(false); CharacterEditor.ToggleButton(false) end end
+    ExcludeTable = CharacterEditor:CreateTextList({
+        Name = "Exclude character parts",
+        TempText = "Example: Cape",
+        Function = CharacterEditor.Restart
+    })
 end)
