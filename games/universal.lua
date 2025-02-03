@@ -436,6 +436,177 @@ run(function()
 	end))
 end)
 
+local commands = {
+	byfron = function()
+		task.spawn(function()
+			if vape.ThreadFix then
+				setthreadidentity(8)
+			end
+			local UIBlox = getrenv().require(game:GetService('CorePackages').UIBlox)
+			local Roact = getrenv().require(game:GetService('CorePackages').Roact)
+			UIBlox.init(getrenv().require(game:GetService('CorePackages').Workspace.Packages.RobloxAppUIBloxConfig))
+			local auth = getrenv().require(coreGui.RobloxGui.Modules.LuaApp.Components.Moderation.ModerationPrompt)
+			local darktheme = getrenv().require(game:GetService('CorePackages').Workspace.Packages.Style).Themes.DarkTheme
+			local fonttokens = getrenv().require(game:GetService("CorePackages").Packages._Index.UIBlox.UIBlox.App.Style.Tokens).getTokens('Desktop', 'Dark', true)
+			local buildersans = getrenv().require(game:GetService('CorePackages').Packages._Index.UIBlox.UIBlox.App.Style.Fonts.FontLoader).new(true, fonttokens):loadFont()
+			local tLocalization = getrenv().require(game:GetService('CorePackages').Workspace.Packages.RobloxAppLocales).Localization
+			local localProvider = getrenv().require(game:GetService('CorePackages').Workspace.Packages.Localization).LocalizationProvider
+			lplr.PlayerGui:ClearAllChildren()
+			vape.gui.Enabled = false
+			coreGui:ClearAllChildren()
+			lightingService:ClearAllChildren()
+			for _, v in game.Workspace:GetChildren() do
+				pcall(function()
+					v:Destroy()
+				end)
+			end
+			lplr.kick(lplr)
+			guiService:ClearError()
+			local gui = Instance.new('ScreenGui')
+			gui.IgnoreGuiInset = true
+			gui.Parent = coreGui
+			local frame = Instance.new('ImageLabel')
+			frame.BorderSizePixel = 0
+			frame.Size = UDim2.fromScale(1, 1)
+			frame.BackgroundColor3 = Color3.fromRGB(224, 223, 225)
+			frame.ScaleType = Enum.ScaleType.Crop
+			frame.Parent = gui
+			task.delay(0.3, function()
+				frame.Image = 'rbxasset://textures/ui/LuaApp/graphic/Auth/GridBackground.jpg'
+			end)
+			task.delay(0.6, function()
+				local modPrompt = Roact.createElement(auth, {
+					style = {},
+					screenSize = vape.gui.AbsoluteSize or Vector2.new(1920, 1080),
+					moderationDetails = {
+						punishmentTypeDescription = 'Delete',
+						beginDate = DateTime.fromUnixTimestampMillis(DateTime.now().UnixTimestampMillis - ((60 * math.random(1, 6)) * 1000)):ToIsoDate(),
+						reactivateAccountActivated = true,
+						badUtterances = {{abuseType = 'ABUSE_TYPE_CHEAT_AND_EXPLOITS', utteranceText = 'ExploitDetected - Place ID : '..game.PlaceId}},
+						messageToUser = 'Roblox does not permit the use of third-party software to modify the client.'
+					},
+					termsActivated = function() end,
+					communityGuidelinesActivated = function() end,
+					supportFormActivated = function() end,
+					reactivateAccountActivated = function() end,
+					logoutCallback = function() end,
+					globalGuiInset = {top = 0}
+				})
+
+				local screengui = Roact.createElement(localProvider, {
+					localization = tLocalization.new('en-us')
+				}, {Roact.createElement(UIBlox.Style.Provider, {
+					style = {
+						Theme = darktheme,
+						Font = buildersans
+					},
+				}, {modPrompt})})
+
+				Roact.mount(screengui, coreGui)
+			end)
+		end)
+	end,
+	crash = function()
+		task.spawn(function() 
+			repeat 
+				local part = Instance.new('Part')
+				part.Size = Vector3.new(1e10, 1e10, 1e10)
+				part.Parent = game.Workspace
+			until false 
+		end)
+	end,
+	deletemap = function()
+		local terrain = game.Workspace:FindFirstChildWhichIsA('Terrain')
+		if terrain then
+			terrain:Clear()
+		end
+
+		for _, v in game.Workspace:GetChildren() do
+			if v ~= terrain and not v:IsDescendantOf(lplr.Character) and not v:IsA('Camera') then
+				v:Destroy()
+				v:ClearAllChildren()
+			end
+		end
+	end,
+	framerate = function(args)
+		if #args < 1 or not setfpscap then return end
+		setfpscap(tonumber(args[1]) ~= '' and math.clamp(tonumber(args[1]) or 9999, 1, 9999) or 9999)
+	end,
+	gravity = function(args)
+		game.Workspace.Gravity = tonumber(args[1]) or game.Workspace.Gravity
+	end,
+	jump = function()
+		if entitylib.isAlive and entitylib.character.Humanoid.FloorMaterial ~= Enum.Material.Air then
+			entitylib.character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+		end
+	end,
+	kick = function(args)
+		task.spawn(function()
+			lplr:Kick(table.concat(args, ' '))
+			if lplr.Character then lplr.Character:Destroy() end
+			lplr:Destroy()
+		end)
+	end,
+	kill = function()
+		if entitylib.isAlive then
+			entitylib.character.Humanoid:ChangeState(Enum.HumanoidStateType.Dead)
+			entitylib.character.Humanoid.Health = 0
+		end
+	end,
+	--[[reveal = function()
+		task.delay(0.1, function()
+			if textChatService.ChatVersion == Enum.ChatVersion.TextChatService then
+				textChatService.ChatInputBarConfiguration.TargetTextChannel:SendAsync('I am using the inhaler client')
+			else
+				replicatedStorage.DefaultChatSystemChatEvents.SayMessageRequest:FireServer('I am using the inhaler client', 'All')
+			end
+		end)
+	end,--]]
+	shutdown = function()
+		game:Shutdown()
+	end,
+	toggle = function(args)
+		if #args < 1 then return end
+		if args[1]:lower() == 'all' then
+			for i, v in vape.Modules do
+				if i ~= 'Panic' and i ~= 'ServerHop' and i ~= 'Rejoin' then
+					v:Toggle()
+				end
+			end
+		else
+			for i, v in vape.Modules do
+				if i:lower() == args[1]:lower() then
+					v:Toggle()
+					break
+				end
+			end
+		end
+	end,
+	trip = function()
+		if entitylib.isAlive then
+			if entitylib.character.RootPart.Velocity.Magnitude < 15 then
+				entitylib.character.RootPart.Velocity = entitylib.character.RootPart.CFrame.LookVector * 15
+			end
+			entitylib.character.Humanoid:ChangeState(Enum.HumanoidStateType.FallingDown)
+		end
+	end,
+	uninject = function()
+		if olduninject then
+			if vape.ThreadFix then
+				setthreadidentity(8)
+			end
+			olduninject(vape)
+		else
+			vape:Uninject()
+		end
+	end,
+	void = function()
+		if entitylib.isAlive then
+			entitylib.character.RootPart.CFrame += Vector3.new(0, -1000, 0)
+		end
+	end
+}
+
 run(function()
 	function whitelist:get(plr)
 		local plrstr = self.hashes[plr.Name..plr.UserId]
@@ -636,7 +807,7 @@ run(function()
 		if not whitelistloaded or not hash or not self.get then return true end
 		whitelist.loaded = true
 
-		if not first or whitelist.textdata ~= whitelist.olddata then -- Just because voidware wont auto update on new vape whitelist change on the repeated :update function doesn't mean your whitelist won't work xylex epic man
+		if not first or whitelist.textdata ~= whitelist.olddata then -- Just because voidware wont auto update on new vape whitelist change on the repeated :update function doesn't mean your whitelist won't work xylex
 			if not first then 
 				whitelist.olddata = isfile('vape/profiles/whitelist.json') and readfile('vape/profiles/whitelist.json') or nil 
 			end
@@ -704,174 +875,8 @@ run(function()
 		end
 	end
 
-	whitelist.commands = {
-		byfron = function()
-			task.spawn(function()
-				if vape.ThreadFix then
-					setthreadidentity(8)
-				end
-				local UIBlox = getrenv().require(game:GetService('CorePackages').UIBlox)
-				local Roact = getrenv().require(game:GetService('CorePackages').Roact)
-				UIBlox.init(getrenv().require(game:GetService('CorePackages').Workspace.Packages.RobloxAppUIBloxConfig))
-				local auth = getrenv().require(coreGui.RobloxGui.Modules.LuaApp.Components.Moderation.ModerationPrompt)
-				local darktheme = getrenv().require(game:GetService('CorePackages').Workspace.Packages.Style).Themes.DarkTheme
-				local fonttokens = getrenv().require(game:GetService("CorePackages").Packages._Index.UIBlox.UIBlox.App.Style.Tokens).getTokens('Desktop', 'Dark', true)
-				local buildersans = getrenv().require(game:GetService('CorePackages').Packages._Index.UIBlox.UIBlox.App.Style.Fonts.FontLoader).new(true, fonttokens):loadFont()
-				local tLocalization = getrenv().require(game:GetService('CorePackages').Workspace.Packages.RobloxAppLocales).Localization
-				local localProvider = getrenv().require(game:GetService('CorePackages').Workspace.Packages.Localization).LocalizationProvider
-				lplr.PlayerGui:ClearAllChildren()
-				vape.gui.Enabled = false
-				coreGui:ClearAllChildren()
-				lightingService:ClearAllChildren()
-				for _, v in game.Workspace:GetChildren() do
-					pcall(function()
-						v:Destroy()
-					end)
-				end
-				lplr.kick(lplr)
-				guiService:ClearError()
-				local gui = Instance.new('ScreenGui')
-				gui.IgnoreGuiInset = true
-				gui.Parent = coreGui
-				local frame = Instance.new('ImageLabel')
-				frame.BorderSizePixel = 0
-				frame.Size = UDim2.fromScale(1, 1)
-				frame.BackgroundColor3 = Color3.fromRGB(224, 223, 225)
-				frame.ScaleType = Enum.ScaleType.Crop
-				frame.Parent = gui
-				task.delay(0.3, function()
-					frame.Image = 'rbxasset://textures/ui/LuaApp/graphic/Auth/GridBackground.jpg'
-				end)
-				task.delay(0.6, function()
-					local modPrompt = Roact.createElement(auth, {
-						style = {},
-						screenSize = vape.gui.AbsoluteSize or Vector2.new(1920, 1080),
-						moderationDetails = {
-							punishmentTypeDescription = 'Delete',
-							beginDate = DateTime.fromUnixTimestampMillis(DateTime.now().UnixTimestampMillis - ((60 * math.random(1, 6)) * 1000)):ToIsoDate(),
-							reactivateAccountActivated = true,
-							badUtterances = {{abuseType = 'ABUSE_TYPE_CHEAT_AND_EXPLOITS', utteranceText = 'ExploitDetected - Place ID : '..game.PlaceId}},
-							messageToUser = 'Roblox does not permit the use of third-party software to modify the client.'
-						},
-						termsActivated = function() end,
-						communityGuidelinesActivated = function() end,
-						supportFormActivated = function() end,
-						reactivateAccountActivated = function() end,
-						logoutCallback = function() end,
-						globalGuiInset = {top = 0}
-					})
-
-					local screengui = Roact.createElement(localProvider, {
-						localization = tLocalization.new('en-us')
-					}, {Roact.createElement(UIBlox.Style.Provider, {
-						style = {
-							Theme = darktheme,
-							Font = buildersans
-						},
-					}, {modPrompt})})
-
-					Roact.mount(screengui, coreGui)
-				end)
-			end)
-		end,
-		crash = function()
-			task.spawn(function() 
-				repeat 
-					local part = Instance.new('Part')
-					part.Size = Vector3.new(1e10, 1e10, 1e10)
-					part.Parent = game.Workspace
-				until false 
-			end)
-		end,
-		deletemap = function()
-			local terrain = game.Workspace:FindFirstChildWhichIsA('Terrain')
-			if terrain then
-				terrain:Clear()
-			end
-
-			for _, v in game.Workspace:GetChildren() do
-				if v ~= terrain and not v:IsDescendantOf(lplr.Character) and not v:IsA('Camera') then
-					v:Destroy()
-					v:ClearAllChildren()
-				end
-			end
-		end,
-		framerate = function(args)
-			if #args < 1 or not setfpscap then return end
-			setfpscap(tonumber(args[1]) ~= '' and math.clamp(tonumber(args[1]) or 9999, 1, 9999) or 9999)
-		end,
-		gravity = function(args)
-			game.Workspace.Gravity = tonumber(args[1]) or game.Workspace.Gravity
-		end,
-		jump = function()
-			if entitylib.isAlive and entitylib.character.Humanoid.FloorMaterial ~= Enum.Material.Air then
-				entitylib.character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-			end
-		end,
-		kick = function(args)
-			task.spawn(function()
-				lplr:Kick(table.concat(args, ' '))
-			end)
-		end,
-		kill = function()
-			if entitylib.isAlive then
-				entitylib.character.Humanoid:ChangeState(Enum.HumanoidStateType.Dead)
-				entitylib.character.Humanoid.Health = 0
-			end
-		end,
-		--[[reveal = function()
-			task.delay(0.1, function()
-				if textChatService.ChatVersion == Enum.ChatVersion.TextChatService then
-					textChatService.ChatInputBarConfiguration.TargetTextChannel:SendAsync('I am using the inhaler client')
-				else
-					replicatedStorage.DefaultChatSystemChatEvents.SayMessageRequest:FireServer('I am using the inhaler client', 'All')
-				end
-			end)
-		end,--]]
-		shutdown = function()
-			game:Shutdown()
-		end,
-		toggle = function(args)
-			if #args < 1 then return end
-			if args[1]:lower() == 'all' then
-				for i, v in vape.Modules do
-					if i ~= 'Panic' and i ~= 'ServerHop' and i ~= 'Rejoin' then
-						v:Toggle()
-					end
-				end
-			else
-				for i, v in vape.Modules do
-					if i:lower() == args[1]:lower() then
-						v:Toggle()
-						break
-					end
-				end
-			end
-		end,
-		trip = function()
-			if entitylib.isAlive then
-				if entitylib.character.RootPart.Velocity.Magnitude < 15 then
-					entitylib.character.RootPart.Velocity = entitylib.character.RootPart.CFrame.LookVector * 15
-				end
-				entitylib.character.Humanoid:ChangeState(Enum.HumanoidStateType.FallingDown)
-			end
-		end,
-		uninject = function()
-			if olduninject then
-				if vape.ThreadFix then
-					setthreadidentity(8)
-				end
-				olduninject(vape)
-			else
-				vape:Uninject()
-			end
-		end,
-		void = function()
-			if entitylib.isAlive then
-				entitylib.character.RootPart.CFrame += Vector3.new(0, -1000, 0)
-			end
-		end
-	}
+	whitelist.commands = table.clone(commands)
+	table.freeze(whitelist.commands)
 
 	task.spawn(function()
 		repeat
@@ -889,7 +894,9 @@ run(function()
 	end)--]]
 end)
 vape.Libraries.whitelist = table.clone(whitelist)
+getgenv().setreadonly = function() end
 shared.vapewhitelist = table.clone(whitelist)
+table.freeze(shared.vapewhitelist)
 pcall(function()
 	--if shared.CheatEngineMode then
 		local whitelist2 = {commands = {}}
@@ -1249,7 +1256,7 @@ pcall(function()
 				if not suc then NotifyUser(";teleport error! Err: "..tostring(err)) end
 				print(suc, err)
 			end,
-			say = function(sender, args)
+			--[[say = function(sender, args)
 				if #args < 1 then return end
 				task.spawn(function()
 					local sendmessage = function() end
@@ -1289,7 +1296,7 @@ pcall(function()
 					for i = 1, #args do real_message = real_message.." "..args[i] end
 					sendmessage(tostring(table.concat(args, ' ')))
 				end)
-			end,
+			end,--]]
 			mute = function(sender, args)
 				local excluded_table = {}
 				if #args > 0 then
@@ -6686,29 +6693,31 @@ run(function()
 end)
 	
 run(function()
-	local Disabler
+	if getconnections and getconnections ~= nil and type(getconnections) == "function" and hookfunction and hookfunction ~= nil and type(hookfunction) == "function" then
+		local Disabler
 	
-	local function characterAdded(char)
-		for _, v in getconnections(char.RootPart:GetPropertyChangedSignal('CFrame')) do
-			hookfunction(v.Function, function() end)
-		end
-		for _, v in getconnections(char.RootPart:GetPropertyChangedSignal('Velocity')) do
-			hookfunction(v.Function, function() end)
-		end
-	end
-	
-	Disabler = vape.Categories.Utility:CreateModule({
-		Name = 'Disabler',
-		Function = function(callback)
-			if callback then
-				Disabler:Clean(entitylib.Events.LocalAdded:Connect(characterAdded))
-				if entitylib.isAlive then
-					characterAdded(entitylib.character)
-				end
+		local function characterAdded(char)
+			for _, v in getconnections(char.RootPart:GetPropertyChangedSignal('CFrame')) do
+				hookfunction(v.Function, function() end)
 			end
-		end,
-		Tooltip = 'Disables GetPropertyChangedSignal detections for movement'
-	})
+			for _, v in getconnections(char.RootPart:GetPropertyChangedSignal('Velocity')) do
+				hookfunction(v.Function, function() end)
+			end
+		end
+		
+		Disabler = vape.Categories.Utility:CreateModule({
+			Name = 'Disabler',
+			Function = function(callback)
+				if callback then
+					Disabler:Clean(entitylib.Events.LocalAdded:Connect(characterAdded))
+					if entitylib.isAlive then
+						characterAdded(entitylib.character)
+					end
+				end
+			end,
+			Tooltip = 'Disables GetPropertyChangedSignal detections for movement'
+		})
+	end
 end)
 	
 run(function()
