@@ -1,2 +1,1 @@
-Pro script
-discord.gg/voidware
+if your shitsploit doesnt work with this buy an awp key
