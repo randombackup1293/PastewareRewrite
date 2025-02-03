@@ -26,6 +26,8 @@ local runService = game:GetService("RunService")
 local RunService = runService
 local runservice = runService
 
+local CustomsAllowed = false
+
 local collectionService = game:GetService("CollectionService")
 shared.vapewhitelist = vape.Libraries.whitelist
 local playersService = game:GetService("Players")
@@ -174,7 +176,7 @@ local GetEnumItems = function() return {} end
 run(function()
 	local PlayerLevelSet = {}
 	local PlayerLevel = {Value = 100}
-	PlayerLevelSet = vape.Categories.Utility:CreateModule({
+	PlayerLevelSet = vape.Categories.Misc:CreateModule({
 		Name = 'SetPlayerLevel',
 		Tooltip = 'Sets your player level to 100 (client sided)',
 		Function = function(calling)
@@ -671,6 +673,7 @@ run(function()
 	PlayerTPSpeed.Object.Visible = false
 end)
 
+local GodMode = {Enabled = false}
 run(function()
     local antiDeath = {}
     local antiDeathConfig = {
@@ -692,6 +695,7 @@ run(function()
 
     function handlers.new()
         local self = {
+			godmode = false,
             boost = false,
             inf = false,
             notify = false,
@@ -721,7 +725,10 @@ run(function()
                 end
             else
                 handlers:resetMode()
-                handlers.hrp.Anchored = false
+				pcall(function()
+					handlers.hrp = entityLibrary.character.HumanoidRootPart
+					handlers.hrp.Anchored = false
+				end)
                 handlers.boost = false
 
                 if handlers.hasNotified then
@@ -739,10 +746,18 @@ run(function()
         local modeActions = {
             Infinite = function() self:enableInfiniteMode() end,
             Boost = function() self:applyBoost() end,
-            Sky = function() self:moveToSky() end
+            Sky = function() self:moveToSky() end,
+			AntiHit = function() self:enableAntiHitMode() end
         }
         modeActions[antiDeathConfig.Mode.Value]()
     end
+
+	function handlers:enableAntiHitMode()
+		if not GodMode.Enabled then
+			GodMode:Toggle(false)
+			self.godmode = true
+		end
+	end
 
     function handlers:enableInfiniteMode()
         if not vape.Modules.InfiniteFly.Enabled then
@@ -791,7 +806,15 @@ run(function()
             end
             self.inf = false
             self.hasNotified = false
-        end
+        elseif self.godmode then
+			if antiDeathConfig.AutoDisable.Enabled then
+                if GodMode.Enabled then
+                    GodMode:Toggle(false)
+                end
+            end
+            self.godmode = false
+            self.hasNotified = false
+		end
     end
 
     local antiDeathStatus = handlers.new()
@@ -818,13 +841,13 @@ run(function()
 
     antiDeathConfig.Mode = antiDeath:CreateDropdown({
         Name = 'Mode',
-        List = {'Infinite', 'Boost', 'Sky' },
-        Default = 'Infinite',
+        List = {'Infinite', 'Boost', 'Sky', 'AntiHit'},
+        Default = 'AntiHit',
         Tooltip = btext('Mode to prevent death.'),
         Function = function(val)
             antiDeathConfig.BoostMode.Object.Visible = val == 'Boost'
             antiDeathConfig.SkyPosition.Object.Visible = val == 'Sky'
-            antiDeathConfig.AutoDisable.Object.Visible = val == 'Infinite'
+            antiDeathConfig.AutoDisable.Object.Visible = (val == 'Infinite' or val == 'AntiHit')
             antiDeathConfig.Velocity.Object.Visible = false
             antiDeathConfig.CFrame.Object.Visible = false
             antiDeathConfig.TweenPower.Object.Visible = false
@@ -2741,65 +2764,6 @@ run(function()
 	})
 end)
 
---[[run(function()
-	local AutoUpgradeEra = {}
-
-	local function invokePurchaseEra(eras)
-		for _, era in ipairs(eras) do
-			local args = {
-				[1] = {
-					["era"] = era
-				}
-			}
-			game:GetService("ReplicatedStorage")
-				:WaitForChild("rbxts_include")
-				:WaitForChild("node_modules")
-				:WaitForChild("@rbxts")
-				:WaitForChild("net")
-				:WaitForChild("out")
-				:WaitForChild("_NetManaged")
-				:WaitForChild("RequestPurchaseEra")
-				:InvokeServer(unpack(args))
-			task.wait(0.1) 
-		end
-	end
-
-	local function invokePurchaseUpgrade(upgrades)
-		for _, upgrade in ipairs(upgrades) do
-			local args = {
-				[1] = {
-					["upgrade"] = upgrade
-				}
-			}
-			game:GetService("ReplicatedStorage")
-				:WaitForChild("rbxts_include")
-				:WaitForChild("node_modules")
-				:FindFirstChild("@rbxts")
-				:WaitForChild("net")
-				:WaitForChild("out")
-				:WaitForChild("_NetManaged")
-				:WaitForChild("RequestPurchaseTeamUpgrade")
-				:InvokeServer(unpack(args))
-			task.wait(0.1) 
-		end
-	end
-
-	AutoUpgradeEra = vape.Categories.Blatant:CreateModule({
-		Name = 'AutoUpgradeEra',
-		Function = function(calling)
-			if calling then 
-				task.spawn(function()
-					repeat 
-						task.wait()
-						invokePurchaseEra({"iron_era", "diamond_era", "emerald_era"})
-						invokePurchaseUpgrade({"altar_i", "bed_defense_i", "destruction_i", "magic_i", "altar_ii", "destruction_ii", "magic_ii", "altar_iii"})
-					until not AutoUpgradeEra.Enabled
-				end)
-			end
-		end
-	})
-end)--]]
-
 run(function()
     local AdetundeExploit = {}
     local AdetundeExploit_List = { Value = "Shield" }
@@ -2944,7 +2908,6 @@ run(function()
 		if plr.Character:FindFirstChild("Humanoid").Health < 0.11 then return false end
 		return true
 	end
-	local GodMode = {Enabled = false}
 	local Slowmode = {Value = 2}
 	GodMode = vape.Categories.Blatant:CreateModule({
 		Name = "AntiHit/Godmode",
@@ -3789,6 +3752,67 @@ run(function()
 end)
 
 run(function()
+	local DoubleHighJump = {Enabled = false}
+	local DoubleHighJumpHeight = {Value = 500}
+	local DoubleHighJumpHeight2 = {Value = 500}
+	local jumps = 0
+	DoubleHighJump = vape.Categories.Blatant:CreateModule({
+		Name = "DoubleHighJump",
+		NoSave = true,
+		Tooltip = "A very interesting high jump.",
+		Function = function(callback)
+			if callback then 
+				task.spawn(function()
+					if entityLibrary.isAlive and lplr.Character:WaitForChild("Humanoid").FloorMaterial == Enum.Material.Air or jumps > 0 then 
+						DoubleHighJump:Toggle(false) 
+						return
+					end
+					for i = 1, 2 do 
+						if not entityLibrary.isAlive then
+							DoubleHighJump:Toggle(false) 
+							return  
+						end
+						if i == 2 and lplr.Character:WaitForChild("Humanoid").FloorMaterial ~= Enum.Material.Air then 
+							continue
+						end
+						lplr.Character:WaitForChild("HumanoidRootPart").Velocity = Vector3.new(0, i == 1 and DoubleHighJumpHeight.Value or DoubleHighJumpHeight2.Value, 0)
+						jumps = i
+						task.wait(i == 1 and 1 or 0.3)
+					end
+					task.spawn(function()
+						for i = 1, 20 do 
+							if entityLibrary.isAlive then 
+								lplr.Character:WaitForChild("Humanoid"):ChangeState(Enum.HumanoidStateType.Landed)
+							end
+						end
+					end)
+					task.delay(1.6, function() jumps = 0 end)
+					if DoubleHighJump.Enabled then
+					   DoubleHighJump:Toggle(false)
+					end
+				end)
+			else
+				VoidwareStore.jumpTick = tick() + 5
+			end
+		end
+	})
+	DoubleHighJumpHeight = DoubleHighJump:CreateSlider({
+		Name = "First Jump",
+		Min = 50,
+		Max = 500,
+		Default = 500,
+		Function = function() end
+	})
+	DoubleHighJumpHeight2 = DoubleHighJump:CreateSlider({
+		Name = "Second Jump",
+		Min = 50,
+		Max = 450,
+		Default = 450,
+		Function = function() end
+	})
+end)
+
+run(function()
     local GuiLibrary = shared.GuiLibrary
 	local texture_pack = {};
 	texture_pack = vape.Categories.Render:CreateModule({
@@ -4260,12 +4284,12 @@ run(function()
 end)
 
 run(function()
-    local GuiLibrary = shared.GuiLibrary
+	local GuiLibrary = shared.GuiLibrary
 	local size_changer = {};
 	local size_changer_d = {};
 	local size_changer_h = {};
 	local size_changer_v = {};
-	size_changer = vape.Categories.Utility:CreateModule({
+	size_changer = vape.Categories.Misc:CreateModule({
 		Name = 'ToolSizeChanger',
 		Tooltip = 'Changes the size of the tools.',
 		Function = function(callback) 
@@ -4411,81 +4435,8 @@ run(function()
 	})
 end)
 
-run(function() 
-	local TPExploit = {}
-	TPExploit = vape.Categories.Blatant:CreateModule({
-		Name = "EmptyGameTP",
-		Function = function(calling)
-			if calling then 
-				TPExploit:Toggle()
-				local TeleportService = game:GetService("TeleportService")
-				local e2 = TeleportService:GetLocalPlayerTeleportData()
-				game:GetService("TeleportService"):Teleport(game.PlaceId, game.Players.LocalPlayer, e2)
-			end
-		end,
-		WhitelistRequired = 1
-	}) 
-end)
-
 local GuiLibrary = shared.GuiLibrary
 shared.slowmode = 0
-
-run(function()
-	local WeatherMods = {Enabled = false}
-	local WeatherMode = {Value = "Snow"}
-	local SnowSpread = {Value = 35}
-	local SnowRate = {Value = 28}
-	local SnowHigh = {Value = 100}
-	WeatherMods = vape.Categories.Render:CreateModule({
-		Name = 'WeatherMods',
-		Tooltip = 'Changes the weather',
-		Function = function(callback) 
-			if callback then
-				task.spawn(function()
-					local snowpart = Instance.new("Part")
-					snowpart.Size = Vector3.new(240,0.5,240)
-					snowpart.Name = "SnowParticle"
-					snowpart.Transparency = 1
-					snowpart.CanCollide = false
-					snowpart.Position = Vector3.new(0,120,286)
-					snowpart.Anchored = true
-					snowpart.Parent = game.Workspace
-					local snow = Instance.new("ParticleEmitter")
-					snow.RotSpeed = NumberRange.new(300)
-					snow.VelocitySpread = SnowSpread.Value
-					snow.Rate = SnowRate.Value
-					snow.Texture = "rbxassetid://8158344433"
-					snow.Rotation = NumberRange.new(110)
-					snow.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0,0.16939899325371,0),NumberSequenceKeypoint.new(0.23365999758244,0.62841498851776,0.37158501148224),NumberSequenceKeypoint.new(0.56209099292755,0.38797798752785,0.2771390080452),NumberSequenceKeypoint.new(0.90577298402786,0.51912599802017,0),NumberSequenceKeypoint.new(1,1,0)})
-					snow.Lifetime = NumberRange.new(8,14)
-					snow.Speed = NumberRange.new(8,18)
-					snow.EmissionDirection = Enum.NormalId.Bottom
-					snow.SpreadAngle = Vector2.new(35,35)
-					snow.Size = NumberSequence.new({NumberSequenceKeypoint.new(0,0,0),NumberSequenceKeypoint.new(0.039760299026966,1.3114800453186,0.32786899805069),NumberSequenceKeypoint.new(0.7554469704628,0.98360699415207,0.44038599729538),NumberSequenceKeypoint.new(1,0,0)})
-					snow.Parent = snowpart
-					local windsnow = Instance.new("ParticleEmitter")
-					windsnow.Acceleration = Vector3.new(0,0,1)
-					windsnow.RotSpeed = NumberRange.new(100)
-					windsnow.VelocitySpread = SnowSpread.Value
-					windsnow.Rate = SnowRate.Value
-					windsnow.Texture = "rbxassetid://8158344433"
-					windsnow.EmissionDirection = Enum.NormalId.Bottom
-					windsnow.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0,0.16939899325371,0),NumberSequenceKeypoint.new(0.23365999758244,0.62841498851776,0.37158501148224),NumberSequenceKeypoint.new(0.56209099292755,0.38797798752785,0.2771390080452),NumberSequenceKeypoint.new(0.90577298402786,0.51912599802017,0),NumberSequenceKeypoint.new(1,1,0)})
-					windsnow.Lifetime = NumberRange.new(8,14)
-					windsnow.Speed = NumberRange.new(8,18)
-					windsnow.Rotation = NumberRange.new(110)
-					windsnow.SpreadAngle = Vector2.new(35,35)
-					windsnow.Size = NumberSequence.new({NumberSequenceKeypoint.new(0,0,0),NumberSequenceKeypoint.new(0.039760299026966,1.3114800453186,0.32786899805069),NumberSequenceKeypoint.new(0.7554469704628,0.98360699415207,0.44038599729538),NumberSequenceKeypoint.new(1,0,0)})
-					windsnow.Parent = snowpart
-					repeat task.wait(); if entityLibrary.isAlive then snowpart.Position = entityLibrary.character.HumanoidRootPart.Position + Vector3.new(0,SnowHigh.Value,0) end until not shared.VapeExecuted
-				end)
-			else for _, v in next, game.Workspace:GetChildren() do if v.Name == "SnowParticle" then v:Remove() end end end
-		end
-	})
-	SnowSpread = WeatherMods:CreateSlider({Name = "Snow Spread", Min = 1, Max = 100, Function = function() end, Default = 35})
-	SnowRate = WeatherMods:CreateSlider({Name = "Snow Rate", Min = 1, Max = 100, Function = function() end, Default = 28})
-	SnowHigh = WeatherMods:CreateSlider({Name = "Snow High", Min = 1, Max = 200, Function = function() end, Default = 100})
-end)
 
 if shared.CheatEngineMode then
 	run(function()
