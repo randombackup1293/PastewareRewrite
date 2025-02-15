@@ -801,6 +801,8 @@ run(function()
 		ConsumeSoul = Knit.Controllers.GrimReaperController.consumeSoul,
 		ConsumeTreeOrb = debug.getproto(Knit.Controllers.EldertreeController.createTreeOrbInteraction, 1),
 		DepositPinata = debug.getproto(debug.getproto(Knit.Controllers.PiggyBankController.KnitStart, 2), 5),
+		DragonBreath = debug.getproto(Knit.Controllers.VoidDragonController.KnitStart, 4),
+		DragonEndFly = debug.getproto(Knit.Controllers.VoidDragonController.flapWings, 1),
 		DragonFly = Knit.Controllers.VoidDragonController.flapWings,
 		DropItem = Knit.Controllers.ItemDropController.dropItemInHand,
 		EquipItem = debug.getproto(require(replicatedStorage.TS.entity.entities['inventory-entity']).InventoryEntity.equipItem, 3),
@@ -808,6 +810,7 @@ run(function()
 		GroundHit = Knit.Controllers.FallDamageController.KnitStart,
 		GuitarHeal = Knit.Controllers.GuitarController.performHeal,
 		HarvestCrop = Knit.Controllers.CropController.KnitStart,
+		KaliyahPunch = debug.getproto(debug.getproto(Knit.Controllers.DragonSlayerController.KnitStart, 2), 1),
 		MageSelect = debug.getproto(Knit.Controllers.MageController.registerTomeInteraction, 1),
 		MinerDig = debug.getproto(Knit.Controllers.MinerController.setupMinerPrompts, 1),
 		PickupItem = Knit.Controllers.ItemDropController.checkForPickup,
@@ -6771,7 +6774,6 @@ run(function()
 	local Custom
 	local Bed
 	local LuckyBlock
-	local IronOre
 	local Effect
 	local CustomHealth = {}
 	local Animation
@@ -6935,7 +6937,6 @@ run(function()
 	
 				local beds = collection('bed', Nuker)
 				local luckyblock = collection('LuckyBlock', Nuker)
-				local ironores = collection('iron-ore', Nuker)
 				customlist = collection('block', Nuker, function(tab, obj)
 					if table.find(Custom.ListEnabled, obj.Name) then
 						table.insert(tab, obj)
@@ -6951,7 +6952,6 @@ run(function()
 						if attemptBreak(Bed.Enabled and beds, localPosition) then continue end
 						if attemptBreak(customlist, localPosition) then continue end
 						if attemptBreak(LuckyBlock.Enabled and luckyblock, localPosition) then continue end
-						if attemptBreak(IronOre.Enabled and ironores, localPosition) then continue end
 	
 						for _, v in parts do
 							v.Position = Vector3.zero
@@ -6984,16 +6984,24 @@ run(function()
 		Default = 60,
 		Suffix = 'hz'
 	})
+	Custom = Nuker:CreateTextList({
+		Name = 'Custom',
+		Function = function()
+			if not customlist then return end
+			table.clear(customlist)
+			for _, obj in store.blocks do
+				if table.find(Custom.ListEnabled, obj.Name) then
+					table.insert(customlist, obj)
+				end
+			end
+		end
+	})
 	Bed = Nuker:CreateToggle({
 		Name = 'Break Bed',
 		Default = true
 	})
 	LuckyBlock = Nuker:CreateToggle({
 		Name = 'Break Lucky Block',
-		Default = true
-	})
-	IronOre = Nuker:CreateToggle({
-		Name = 'Break Iron Ore',
 		Default = true
 	})
 	Effect = Nuker:CreateToggle({
