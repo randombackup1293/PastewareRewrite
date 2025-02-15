@@ -6987,18 +6987,6 @@ run(function()
 		Default = 60,
 		Suffix = 'hz'
 	})
-	Custom = Nuker:CreateTextList({
-		Name = 'Custom',
-		Function = function()
-			if not customlist then return end
-			table.clear(customlist)
-			for _, obj in store.blocks do
-				if table.find(Custom.ListEnabled, obj.Name) then
-					table.insert(customlist, obj)
-				end
-			end
-		end
-	})
 	Bed = Nuker:CreateToggle({
 		Name = 'Break Bed',
 		Default = true
