@@ -6937,11 +6937,6 @@ run(function()
 	
 				local beds = collection('bed', Nuker)
 				local luckyblock = collection('LuckyBlock', Nuker)
-				customlist = collection('block', Nuker, function(tab, obj)
-					if table.find(Custom.ListEnabled, obj.Name) then
-						table.insert(tab, obj)
-					end
-				end)
 	
 				repeat
 					task.wait(1 / UpdateRate.Value)
