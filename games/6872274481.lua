@@ -4335,10 +4335,6 @@ run(function()
 	local AutoPlay
 	local Random
 	
-	local function isEveryoneDead()
-		return #bedwars.Store:getState().Party.members <= 0
-	end
-	
 	local function joinQueue()
 		--if not bedwars.Store:getState().Game.customMatch and bedwars.Store:getState().Party.leader.userId == lplr.UserId and bedwars.Store:getState().Party.queueState == 0 then
 			if Random.Enabled then
@@ -4360,7 +4356,7 @@ run(function()
 		Function = function(callback)
 			if callback then
 				AutoPlay:Clean(vapeEvents.EntityDeathEvent.Event:Connect(function(deathTable)
-					if deathTable.finalKill and deathTable.entityInstance == lplr.Character and isEveryoneDead() and store.matchState ~= 2 then
+					if deathTable.finalKill and deathTable.entityInstance == lplr.Character and store.matchState ~= 2 then
 						joinQueue()
 					end
 				end))
