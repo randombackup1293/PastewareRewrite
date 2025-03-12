@@ -1,6 +1,5 @@
 repeat task.wait() until game:IsLoaded()
 
-local lplr = playersService.LocalPlayer
 local assetfunction = getcustomasset
 
 local vape = shared.vape
@@ -60,7 +59,7 @@ local vapeEvents = setmetatable({}, {
 		return self[index]
 	end
 })
-local vapeTargetInfo = shared.VapeTargetInfo
+local vapeTargetInfo = shared.VapeTargetInfo or {Targets = {}}
 local vapeInjected = true
 
 local CheatEngineHelper = {
@@ -505,16 +504,20 @@ table.insert(vapeConnections, updateitem.Event:Connect(function(inputObj)
 	end
 end))
 local function switchItem(tool)
-	if (entityLibrary.isAlive and lplr.Character:FindFirstChild("HandInvItem")) then
-		if lplr.Character:FindFirstChild("HandInvItem").Value ~= tool then
-			bedwars.Client:Get(bedwars.EquipItemRemote):InvokeServer({
-				hand = tool
-			})
-			local started = tick()
-			repeat task.wait() until (tick() - started) > 0.3 or lplr.Character:FindFirstChild("HandInvItem") and lplr.Character:FindFirstChild("HandInvItem").Value == tool
+	delayTime = delayTime or 0.05
+	local check = lplr.Character and lplr.Character:FindFirstChild('HandInvItem') or nil
+	if check and check.Value ~= tool and tool.Parent ~= nil then
+		task.spawn(function()
+			bedwars.Client:Get(bedwars.EquipItemRemote):InvokeServer({hand = tool})
+		end)
+		check.Value = tool
+		if delayTime > 0 then
+			task.wait(delayTime)
 		end
+		return true
 	end
 end
+local switchitem = switchItem
 VoidwareFunctions.GlobaliseObject("switchItem", switchItem)
 local function switchToAndUseTool(block, legit)
 	local tool = getBestTool(block.Name)
@@ -1700,14 +1703,114 @@ local function getBestBreakSide(pos)
 end
 
 local function EntityNearPosition(distance, ignore, overridepos)
-	local ent = entitylib.EntityPosition({
-		Part = 'RootPart',
-		Range = distance,
-		Players = true,
-		NPCs = not ignore,
-		Wallcheck = true
-	})
-	return ent
+	local closestEntity, closestMagnitude = nil, distance
+	if entityLibrary.isAlive then
+		for i, v in pairs(entityLibrary.List) do
+			if not v.Targetable then continue end
+			local mag = (entityLibrary.character.HumanoidRootPart.Position - v.RootPart.Position).magnitude
+			if overridepos and mag > distance then
+				mag = (overridepos - v.RootPart.Position).magnitude
+			end
+			if mag <= closestMagnitude then
+				closestEntity, closestMagnitude = v, mag
+			end
+		end
+		if not ignore then
+			for i, v in pairs(game.Workspace:GetChildren()) do
+				if v.Name == "Void Enemy Dummy" or v.Name == "Emerald Enemy Dummy" or v.Name == "Diamond Enemy Dummy" or v.Name == "Leather Enemy Dummy" or v.Name == "Regular Enemy Dummy" or v.Name == "Iron Enemy Dummy" then
+					if v.PrimaryPart then
+						local mag = (entityLibrary.character.HumanoidRootPart.Position - v.PrimaryPart.Position).magnitude
+						if overridepos and mag > distance then
+							mag = (overridepos - v2.PrimaryPart.Position).magnitude
+						end
+						if mag <= closestMagnitude then
+							closestEntity, closestMagnitude = {Player = {Name = v.Name, UserId = (v.Name == "Duck" and 2020831224 or 1443379645)}, Character = v, RootPart = v.PrimaryPart, JumpTick = tick() + 5, Jumping = false, Humanoid = {HipHeight = 2}}, mag
+						end
+					end
+				end
+			end
+			for i, v in pairs(collectionService:GetTagged("Monster")) do
+				if v.PrimaryPart and v:GetAttribute("Team") ~= lplr:GetAttribute("Team") then
+					local mag = (entityLibrary.character.HumanoidRootPart.Position - v.PrimaryPart.Position).magnitude
+					if overridepos and mag > distance then
+						mag = (overridepos - v2.PrimaryPart.Position).magnitude
+					end
+					if mag <= closestMagnitude then
+						closestEntity, closestMagnitude = {Player = {Name = v.Name, UserId = (v.Name == "Duck" and 2020831224 or 1443379645)}, Character = v, RootPart = v.PrimaryPart, JumpTick = tick() + 5, Jumping = false, Humanoid = {HipHeight = 2}}, mag
+					end
+				end
+			end
+			for i, v in pairs(collectionService:GetTagged("GuardianOfDream")) do
+				if v.PrimaryPart and v:GetAttribute("Team") ~= lplr:GetAttribute("Team") then
+					local mag = (entityLibrary.character.HumanoidRootPart.Position - v.PrimaryPart.Position).magnitude
+					if overridepos and mag > distance then
+						mag = (overridepos - v2.PrimaryPart.Position).magnitude
+					end
+					if mag <= closestMagnitude then
+						closestEntity, closestMagnitude = {Player = {Name = v.Name, UserId = (v.Name == "Duck" and 2020831224 or 1443379645)}, Character = v, RootPart = v.PrimaryPart, JumpTick = tick() + 5, Jumping = false, Humanoid = {HipHeight = 2}}, mag
+					end
+				end
+			end
+			for i, v in pairs(collectionService:GetTagged("DiamondGuardian")) do
+				if v.PrimaryPart then
+					local mag = (entityLibrary.character.HumanoidRootPart.Position - v.PrimaryPart.Position).magnitude
+					if overridepos and mag > distance then
+						mag = (overridepos - v2.PrimaryPart.Position).magnitude
+					end
+					if mag <= closestMagnitude then
+						closestEntity, closestMagnitude = {Player = {Name = "DiamondGuardian", UserId = 1443379645}, Character = v, RootPart = v.PrimaryPart, JumpTick = tick() + 5, Jumping = false, Humanoid = {HipHeight = 2}}, mag
+					end
+				end
+			end
+			for i, v in pairs(collectionService:GetTagged("GolemBoss")) do
+				if v.PrimaryPart then
+					local mag = (entityLibrary.character.HumanoidRootPart.Position - v.PrimaryPart.Position).magnitude
+					if overridepos and mag > distance then
+						mag = (overridepos - v2.PrimaryPart.Position).magnitude
+					end
+					if mag <= closestMagnitude then
+						closestEntity, closestMagnitude = {Player = {Name = "GolemBoss", UserId = 1443379645}, Character = v, RootPart = v.PrimaryPart, JumpTick = tick() + 5, Jumping = false, Humanoid = {HipHeight = 2}}, mag
+					end
+				end
+			end
+			for i, v in pairs(collectionService:GetTagged("Drone")) do
+				if v.PrimaryPart and tonumber(v:GetAttribute("PlayerUserId")) ~= lplr.UserId then
+					local droneplr = playersService:GetPlayerByUserId(v:GetAttribute("PlayerUserId"))
+					if droneplr and droneplr.Team == lplr.Team then continue end
+					local mag = (entityLibrary.character.HumanoidRootPart.Position - v.PrimaryPart.Position).magnitude
+					if overridepos and mag > distance then
+						mag = (overridepos - v.PrimaryPart.Position).magnitude
+					end
+					if mag <= closestMagnitude then -- magcheck
+						closestEntity, closestMagnitude = {Player = {Name = "Drone", UserId = 1443379645}, Character = v, RootPart = v.PrimaryPart, JumpTick = tick() + 5, Jumping = false, Humanoid = {HipHeight = 2}}, mag
+					end
+				end
+			end
+			for i,v in pairs(game.Workspace:GetChildren()) do
+				if v.Name == "InfectedCrateEntity" and v.ClassName == "Model" and v.PrimaryPart then
+					local mag = (entityLibrary.character.HumanoidRootPart.Position - v.PrimaryPart.Position).magnitude
+					if overridepos and mag > distance then
+						mag = (overridepos - v.PrimaryPart.Position).magnitude
+					end
+					if mag <= closestMagnitude then -- magcheck
+						closestEntity, closestMagnitude = {Player = {Name = "InfectedCrateEntity", UserId = 1443379645}, Character = v, RootPart = v.PrimaryPart, JumpTick = tick() + 5, Jumping = false, Humanoid = {HipHeight = 2}}, mag
+					end
+				end
+			end
+			for i, v in pairs(store.pots) do
+				if v.PrimaryPart then
+					local mag = (entityLibrary.character.HumanoidRootPart.Position - v.PrimaryPart.Position).magnitude
+					if overridepos and mag > distance then
+						mag = (overridepos - v.PrimaryPart.Position).magnitude
+					end
+					if mag <= closestMagnitude then -- magcheck
+						closestEntity, closestMagnitude = {Player = {Name = "Pot", UserId = 1443379645}, Character = v, RootPart = v.PrimaryPart, JumpTick = tick() + 5, Jumping = false, Humanoid = {HipHeight = 2}}, mag
+					end
+				end
+			end
+		end
+	end
+	return closestEntity
 end
 VoidwareFunctions.GlobaliseObject("EntityNearPosition", EntityNearPosition)
 
@@ -2407,7 +2510,7 @@ end)
 		end,
 		HoverText = "Hold attack button to automatically click"
 	})
-	autoclickercps = autoclicker.CreateTwoSlider({
+	autoclickercps = autoclicker:CreateTwoSlider({
 		Name = "CPS",
 		Min = 1,
 		Max = 20,
@@ -2535,7 +2638,7 @@ end)--]]
 		end,
 		HoverText = "Hold attack button to automatically click"
 	})
-	autoclickercps = autoclicker.CreateTwoSlider({
+	autoclickercps = autoclicker:CreateTwoSlider({
 		Name = "CPS",
 		Min = 1,
 		Max = 20,
@@ -3527,209 +3630,12 @@ end)
 end)--]]
 
 run(function()
-	local InfiniteFly = {Enabled = false}
-	local InfiniteFlyMode = {Value = "CFrame"}
-	local InfiniteFlySpeed = {Value = 23}
-	local InfiniteFlyVerticalSpeed = {Value = 40}
-	local InfiniteFlyVertical = {Enabled = true}
-	local InfiniteFlyUp = false
-	local InfiniteFlyDown = false
-	local alternatelist = {"Normal", "AntiCheat A", "AntiCheat B"}
-	local clonesuccess = false
-	local disabledproper = true
-	local oldcloneroot
-	local cloned
-	local clone
-	local bodyvelo
-	local FlyOverlap = OverlapParams.new()
-	FlyOverlap.MaxParts = 9e9
-	FlyOverlap.FilterDescendantsInstances = {}
-	FlyOverlap.RespectCanCollide = true
-
-	local function disablefunc()
-		if bodyvelo then bodyvelo:Destroy() end
-		disabledproper = true
-		if not oldcloneroot or not oldcloneroot.Parent then return end
-		lplr.Character.Parent = replicatedStorage
-		oldcloneroot.Parent = lplr.Character
-		lplr.Character.PrimaryPart = oldcloneroot
-		lplr.Character.Parent = game.Workspace
-		oldcloneroot.CanCollide = true
-		for i,v in pairs(lplr.Character:GetDescendants()) do
-			if v:IsA("Weld") or v:IsA("Motor6D") then
-				if v.Part0 == clone then v.Part0 = oldcloneroot end
-				if v.Part1 == clone then v.Part1 = oldcloneroot end
-			end
-			if v:IsA("BodyVelocity") then
-				v:Destroy()
-			end
-		end
-		for i,v in pairs(oldcloneroot:GetChildren()) do
-			if v:IsA("BodyVelocity") then
-				v:Destroy()
-			end
-		end
-		local oldclonepos = clone.Position.Y
-		if clone then
-			clone:Destroy()
-			clone = nil
-		end
-		lplr.Character.Humanoid.HipHeight = hip or 2
-		local origcf = {oldcloneroot.CFrame:GetComponents()}
-		origcf[2] = oldclonepos
-		oldcloneroot.CFrame = CFrame.new(unpack(origcf))
-		oldcloneroot = nil
-		warningNotification("InfiniteFly", "Landed!", 3)
-	end
-
+	local InfiniteFly
 	InfiniteFly = vape.Categories.Blatant:CreateModule({
 		Name = "InfiniteFly",
 		Function = function(callback)
 			if callback then
-				if not entityLibrary.isAlive then
-					disabledproper = true
-				end
-				if not disabledproper then
-					warningNotification("InfiniteFly", "Wait for the last fly to finish", 3)
-					InfiniteFly:Toggle(false)
-					return
-				end
-				InfiniteFly:Clean(inputService.InputBegan:Connect(function(input1)
-					if InfiniteFlyVertical.Enabled and inputService:GetFocusedTextBox() == nil then
-						if input1.KeyCode == Enum.KeyCode.Space or input1.KeyCode == Enum.KeyCode.ButtonA then
-							InfiniteFlyUp = true
-						end
-						if input1.KeyCode == Enum.KeyCode.LeftShift or input1.KeyCode == Enum.KeyCode.ButtonL2 then
-							InfiniteFlyDown = true
-						end
-					end
-				end))
-				InfiniteFly:Clean(inputService.InputEnded:Connect(function(input1)
-					if input1.KeyCode == Enum.KeyCode.Space or input1.KeyCode == Enum.KeyCode.ButtonA then
-						InfiniteFlyUp = false
-					end
-					if input1.KeyCode == Enum.KeyCode.LeftShift or input1.KeyCode == Enum.KeyCode.ButtonL2 then
-						InfiniteFlyDown = false
-					end
-				end))
-				if inputService.TouchEnabled then
-					pcall(function()
-						local jumpButton = lplr.PlayerGui.TouchGui.TouchControlFrame.JumpButton
-						InfiniteFly:Clean(jumpButton:GetPropertyChangedSignal("ImageRectOffset"):Connect(function()
-							InfiniteFlyUp = jumpButton.ImageRectOffset.X == 146
-						end))
-						InfiniteFlyUp = jumpButton.ImageRectOffset.X == 146
-					end)
-				end
-				clonesuccess = false
-				if entityLibrary.isAlive and entityLibrary.character.Humanoid.Health > 0 then
-					cloned = lplr.Character
-					oldcloneroot = entityLibrary.character.HumanoidRootPart
-					if not lplr.Character.Parent then
-						InfiniteFly:Toggle(false)
-						return
-					end
-					lplr.Character.Parent = game.Workspace
-					clone = oldcloneroot:Clone()
-					clone.Parent = lplr.Character
-					oldcloneroot.Parent = gameCamera
-					--bedwars.QueryUtil:setQueryIgnored(oldcloneroot, true)
-					clone.CFrame = oldcloneroot.CFrame
-					lplr.Character.PrimaryPart = clone
-					lplr.Character.Parent = game.Workspace
-					for i,v in pairs(lplr.Character:GetDescendants()) do
-						if v:IsA("Weld") or v:IsA("Motor6D") then
-							if v.Part0 == oldcloneroot then v.Part0 = clone end
-							if v.Part1 == oldcloneroot then v.Part1 = clone end
-						end
-						if v:IsA("BodyVelocity") then
-							v:Destroy()
-						end
-					end
-					for i,v in pairs(oldcloneroot:GetChildren()) do
-						if v:IsA("BodyVelocity") then
-							v:Destroy()
-						end
-					end
-					if hip then
-						lplr.Character.Humanoid.HipHeight = hip
-					end
-					hip = lplr.Character.Humanoid.HipHeight
-					clonesuccess = true
-				end
-				if not clonesuccess then
-					warningNotification("InfiniteFly", "Character missing", 3)
-					InfiniteFly:Toggle(false)
-					return
-				end
-				local goneup = false
-				InfiniteFly:Clean(runservice.Heartbeat:Connect(function(delta)
-					if entityLibrary.isAlive then
-						local playerMass = (entityLibrary.character.HumanoidRootPart:GetMass() - 1.4) * (delta * 100)
-						local flyVelocity = entityLibrary.character.Humanoid.MoveDirection * (InfiniteFlyMode.Value == "Normal" and InfiniteFlySpeed.Value or 20)
-						entityLibrary.character.HumanoidRootPart.Velocity = flyVelocity + (Vector3.new(0, playerMass + (InfiniteFlyUp and InfiniteFlyVerticalSpeed.Value or 0) + (InfiniteFlyDown and -InfiniteFlyVerticalSpeed.Value or 0), 0))
-						if InfiniteFlyMode.Value ~= "Normal" then
-							entityLibrary.character.HumanoidRootPart.CFrame = entityLibrary.character.HumanoidRootPart.CFrame + (entityLibrary.character.Humanoid.MoveDirection * ((InfiniteFlySpeed.Value + getSpeed()) - 20)) * delta
-						end
-						local speedCFrame = {oldcloneroot.CFrame:GetComponents()}
-						speedCFrame[1] = clone.CFrame.X
-						if speedCFrame[2] < 1000 or (not goneup) then
-							task.spawn(warningNotification, "InfiniteFly", "Teleported Up", 3)
-							speedCFrame[2] = 100000
-							goneup = true
-						end
-						speedCFrame[3] = clone.CFrame.Z
-						oldcloneroot.CFrame = CFrame.new(unpack(speedCFrame))
-						oldcloneroot.Velocity = Vector3.new(clone.Velocity.X, oldcloneroot.Velocity.Y, clone.Velocity.Z)
-					end
-				end))
-			else
-				if clonesuccess and oldcloneroot and clone and lplr.Character.Parent == game.Workspace and oldcloneroot.Parent ~= nil and disabledproper and cloned == lplr.Character then
-					local rayparams = RaycastParams.new()
-					rayparams.FilterDescendantsInstances = {lplr.Character, gameCamera}
-					rayparams.RespectCanCollide = true
-					local ray = game.Workspace:Raycast(Vector3.new(oldcloneroot.Position.X, clone.CFrame.p.Y, oldcloneroot.Position.Z), Vector3.new(0, -1000, 0), rayparams)
-					local origcf = {clone.CFrame:GetComponents()}
-					origcf[1] = oldcloneroot.Position.X
-					origcf[2] = ray and ray.Position.Y + (entityLibrary.character.Humanoid.HipHeight + (oldcloneroot.Size.Y / 2)) or clone.CFrame.p.Y
-					origcf[3] = oldcloneroot.Position.Z
-					oldcloneroot.CanCollide = true
-					bodyvelo = Instance.new("BodyVelocity")
-					bodyvelo.MaxForce = Vector3.new(0, 9e9, 0)
-					bodyvelo.Velocity = Vector3.new(0, -1, 0)
-					bodyvelo.Parent = oldcloneroot
-					oldcloneroot.Velocity = Vector3.new(clone.Velocity.X, -1, clone.Velocity.Z)
-					InfiniteFly:Clean(runservice.Heartbeat:Connect(function(dt)
-						if oldcloneroot then
-							oldcloneroot.Velocity = Vector3.new(clone.Velocity.X, -1, clone.Velocity.Z)
-							local bruh = {clone.CFrame:GetComponents()}
-							bruh[2] = oldcloneroot.CFrame.Y
-							local newcf = CFrame.new(unpack(bruh))
-							FlyOverlap.FilterDescendantsInstances = {lplr.Character, gameCamera}
-							local allowed = true
-							for i,v in pairs(game.Workspace:GetPartBoundsInRadius(newcf.p, 2, FlyOverlap)) do
-								if (v.Position.Y + (v.Size.Y / 2)) > (newcf.p.Y + 0.5) then
-									allowed = false
-									break
-								end
-							end
-							if allowed then
-								oldcloneroot.CFrame = newcf
-							end
-						end
-					end))
-					oldcloneroot.CFrame = CFrame.new(unpack(origcf))
-					entityLibrary.character.Humanoid:ChangeState(Enum.HumanoidStateType.Landed)
-					disabledproper = false
-					if isnetworkowner(oldcloneroot) then
-						warningNotification("InfiniteFly", "Waiting 1.1s to not flag", 3)
-						task.delay(1.1, disablefunc)
-					else
-						disablefunc()
-					end
-				end
-				InfiniteFlyUp = false
-				InfiniteFlyDown = false
+				InfiniteFly:Toggle()
 			end
 		end,
 		HoverText = "Makes you go zoom",
@@ -3737,26 +3643,8 @@ run(function()
 			return "Heatseeker"
 		end
 	})
-	InfiniteFlySpeed = InfiniteFly:CreateSlider({
-		Name = "Speed",
-		Min = 1,
-		Max = 23,
-		Function = function(val) end,
-		Default = 23
-	})
-	InfiniteFlyVerticalSpeed = InfiniteFly:CreateSlider({
-		Name = "Vertical Speed",
-		Min = 1,
-		Max = 100,
-		Function = function(val) end,
-		Default = 44
-	})
-	InfiniteFlyVertical = InfiniteFly:CreateToggle({
-		Name = "Y Level",
-		Function = function() end,
-		Default = true
-	})
 end)
+
 local killauraNearPlayer
 local lplr = game:GetService("Players").LocalPlayer
 
@@ -3869,234 +3757,505 @@ local function gettargets(range, maxt, limit)
 	return targets
 end
 
+local RunLoops = {
+    RenderStepTable = {},
+    StepTable = {},
+    HeartTable = {}
+}
+
+local function BindToLoop(tableName, service, name, func)
+	local oldfunc = func
+	func = function(delta) VoidwareFunctions.handlepcall(pcall(function() oldfunc(delta) end)) end
+    if RunLoops[tableName][name] == nil then
+        RunLoops[tableName][name] = service:Connect(func)
+        table.insert(vapeConnections, RunLoops[tableName][name])
+    end
+end
+
+local function UnbindFromLoop(tableName, name)
+    if RunLoops[tableName][name] then
+        RunLoops[tableName][name]:Disconnect()
+        RunLoops[tableName][name] = nil
+    end
+end
+
+function RunLoops:BindToRenderStep(name, func)
+    BindToLoop("RenderStepTable", runService.RenderStepped, name, func)
+end
+
+function RunLoops:UnbindFromRenderStep(name)
+    UnbindFromLoop("RenderStepTable", name)
+end
+
+function RunLoops:BindToStepped(name, func)
+    BindToLoop("StepTable", runService.Stepped, name, func)
+end
+
+function RunLoops:UnbindFromStepped(name)
+    UnbindFromLoop("StepTable", name)
+end
+
+function RunLoops:BindToHeartbeat(name, func)
+    BindToLoop("HeartTable", runService.Heartbeat, name, func)
+end
+
+function RunLoops:UnbindFromHeartbeat(name)
+    UnbindFromLoop("HeartTable", name)
+end
+
+local anims = {
+	Normal = {
+		{CFrame = CFrame.new(0.69, -0.7, 0.6) * CFrame.Angles(math.rad(295), math.rad(55), math.rad(290)), Time = 0.05},
+		{CFrame = CFrame.new(0.69, -0.71, 0.6) * CFrame.Angles(math.rad(200), math.rad(60), math.rad(1)), Time = 0.05}
+	},
+	Slow = {
+		{CFrame = CFrame.new(0.69, -0.7, 0.6) * CFrame.Angles(math.rad(295), math.rad(55), math.rad(290)), Time = 0.15},
+		{CFrame = CFrame.new(0.69, -0.71, 0.6) * CFrame.Angles(math.rad(200), math.rad(60), math.rad(1)), Time = 0.15}
+	},
+	New = {
+		{CFrame = CFrame.new(0.69, -0.77, 1.47) * CFrame.Angles(math.rad(-33), math.rad(57), math.rad(-81)), Time = 0.12},
+		{CFrame = CFrame.new(0.74, -0.92, 0.88) * CFrame.Angles(math.rad(147), math.rad(71), math.rad(53)), Time = 0.12}
+	},
+	Latest = {
+		{CFrame = CFrame.new(0.69, -0.7, 0.1) * CFrame.Angles(math.rad(-65), math.rad(55), math.rad(-51)), Time = 0.1},
+		{CFrame = CFrame.new(0.16, -1.16, 0.5) * CFrame.Angles(math.rad(-179), math.rad(54), math.rad(33)), Time = 0.1}
+	},
+	["Vertical Spin"] = {
+		{CFrame = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-90), math.rad(8), math.rad(5)), Time = 0.1},
+		{CFrame = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(180), math.rad(3), math.rad(13)), Time = 0.1},
+		{CFrame = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(90), math.rad(-5), math.rad(8)), Time = 0.1},
+		{CFrame = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(0), math.rad(-0), math.rad(-0)), Time = 0.1}
+	},
+	Exhibition = {
+		{CFrame = CFrame.new(0.69, -0.7, 0.6) * CFrame.Angles(math.rad(-30), math.rad(50), math.rad(-90)), Time = 0.1},
+		{CFrame = CFrame.new(0.7, -0.71, 0.59) * CFrame.Angles(math.rad(-84), math.rad(50), math.rad(-38)), Time = 0.2}
+	},
+	["Exhibition Old"] = {
+		{CFrame = CFrame.new(0.69, -0.7, 0.6) * CFrame.Angles(math.rad(-30), math.rad(50), math.rad(-90)), Time = 0.15},
+		{CFrame = CFrame.new(0.69, -0.7, 0.6) * CFrame.Angles(math.rad(-30), math.rad(50), math.rad(-90)), Time = 0.05},
+		{CFrame = CFrame.new(0.7, -0.71, 0.59) * CFrame.Angles(math.rad(-84), math.rad(50), math.rad(-38)), Time = 0.1},
+		{CFrame = CFrame.new(0.7, -0.71, 0.59) * CFrame.Angles(math.rad(-84), math.rad(50), math.rad(-38)), Time = 0.05},
+		{CFrame = CFrame.new(0.63, -0.1, 1.37) * CFrame.Angles(math.rad(-84), math.rad(50), math.rad(-38)), Time = 0.15}
+	},
+	Pulse = {
+		{CFrame = CFrame.new(0.69, -0.7, 0.6) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0)), Time = 0.5},
+		{CFrame = CFrame.new(0.69, -0.72, 0.6) * CFrame.Angles(math.rad(-20), math.rad(0), math.rad(0)), Time = 1.0},
+		{CFrame = CFrame.new(0.69, -0.68, 0.6) * CFrame.Angles(math.rad(20), math.rad(0), math.rad(0)), Time = 1.5},
+		{CFrame = CFrame.new(0.69, -0.7, 0.6) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0)), Time = 2.0}
+	},
+	["Slowly Smooth"] = {
+		{CFrame = CFrame.new(0.69, -0.7, 0.6) * CFrame.Angles(math.rad(-30), math.rad(50), math.rad(-90)), Time = 0.25},
+		{CFrame = CFrame.new(0.7, -0.71, 0.59) * CFrame.Angles(math.rad(-84), math.rad(50), math.rad(-38)), Time = 0.5},
+		{CFrame = CFrame.new(0.150, -0.8, 0.1) * CFrame.Angles(math.rad(-45), math.rad(40), math.rad(-75)), Time = 0.75},
+		{CFrame = CFrame.new(0.02, -0.8, 0.05) * CFrame.Angles(math.rad(-60), math.rad(60), math.rad(-95)), Time = 1},
+		{CFrame = CFrame.new(0.7, -0.71, 0.59) * CFrame.Angles(math.rad(-84), math.rad(50), math.rad(-38)), Time = 1.25},
+		{CFrame = CFrame.new(0.69, -0.7, 0.6) * CFrame.Angles(math.rad(-30), math.rad(50), math.rad(-90)), Time = 1.5},
+	},
+	["Latest Remake"] = {
+		{CFrame = CFrame.new(0.68, -0.72, 0.12) * CFrame.Angles(math.rad(-63), math.rad(57), math.rad(-49)), Time = 0.4},
+		{CFrame = CFrame.new(0.17, -1.18, 0.52) * CFrame.Angles(math.rad(-177), math.rad(56), math.rad(31)), Time = 0.4}
+	},
+	["Exhibition Fast"] = {
+		{CFrame = CFrame.new(0.7, -0.7, 0.6) * CFrame.Angles(math.rad(-20), math.rad(50), math.rad(-90)), Time = 0.05},
+		{CFrame = CFrame.new(0.8, -0.8, 0.5) * CFrame.Angles(math.rad(-60), math.rad(60), math.rad(-80)), Time = 0.07},
+	},
+	["Smooth Gaming"] = {
+		{CFrame = CFrame.new(0.69, -0.7, 0.6) * CFrame.Angles(math.rad(-30), math.rad(50), math.rad(-90)), Time = 0.25},
+		{CFrame = CFrame.new(0.68, -0.72, 0.12) * CFrame.Angles(math.rad(-63), math.rad(57), math.rad(-49)), Time = 0.4},
+		{CFrame = CFrame.new(0.7, -0.71, 0.59) * CFrame.Angles(math.rad(-84), math.rad(50), math.rad(-38)), Time = 0.6},
+		{CFrame = CFrame.new(0.17, -1.18, 0.52) * CFrame.Angles(math.rad(-177), math.rad(56), math.rad(31)), Time = 0.6},
+		{CFrame = CFrame.new(0.150, -0.8, 0.1) * CFrame.Angles(math.rad(-45), math.rad(40), math.rad(-75)), Time = 0.8},
+		{CFrame = CFrame.new(0.02, -0.8, 0.05) * CFrame.Angles(math.rad(-60), math.rad(60), math.rad(-95)), Time = 1.0},
+		{CFrame = CFrame.new(0.8, -0.8, 0.5) * CFrame.Angles(math.rad(-60), math.rad(60), math.rad(-80)), Time = 1.2},
+		{CFrame = CFrame.new(0.7, -0.71, 0.59) * CFrame.Angles(math.rad(-84), math.rad(50), math.rad(-38)), Time = 1.4},
+		{CFrame = CFrame.new(0.69, -0.7, 0.6) * CFrame.Angles(math.rad(-30), math.rad(50), math.rad(-90)), Time = 1.6}
+	}	
+}
+
+local function Wallcheck(attackerCharacter, targetCharacter, additionalIgnore)
+    if not (attackerCharacter and targetCharacter) then
+        return false
+    end
+
+    local humanoidRootPart = attackerCharacter.PrimaryPart
+    local targetRootPart = targetCharacter.PrimaryPart
+    if not (humanoidRootPart and targetRootPart) then
+        return false
+    end
+
+    local origin = humanoidRootPart.Position
+    local targetPosition = targetRootPart.Position
+    local direction = targetPosition - origin
+
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+    raycastParams.RespectCanCollide = true
+
+    local ignoreList = {attackerCharacter}
+    
+    if additionalIgnore and typeof(additionalIgnore) == "table" then
+        for _, item in pairs(additionalIgnore) do
+            table.insert(ignoreList, item)
+        end
+    end
+
+    raycastParams.FilterDescendantsInstances = ignoreList
+
+    local raycastResult = workspace:Raycast(origin, direction, raycastParams)
+
+    if raycastResult then
+        if raycastResult.Instance:IsDescendantOf(targetCharacter) then
+            return true
+        else
+            return false
+        end
+    else
+        return true
+    end
+end
+
+local cleanTable = function(tab)
+	local res = {}
+	for i,v in pairs(tab) do table.insert(res, tostring(i)) end
+	return res
+end
+
+local function isFirstPerson()
+	if not entitylib.isAlive then return false end
+	return (entitylib.character.Head.Position - gameCamera.CFrame.Position).Magnitude < 2
+end
+
+bedwars.ViewModel = workspace.CurrentCamera.Viewmodel.RightHand.RightWrist
+local oldrotation = bedwars.ViewModel.C0
+
+local originalArmC0, originalNeckC0, originalRootC0
+
+local killauraNearPlayer = false
 run(function()
-	local animating
+	local tweenService = tweenService or game:GetService("TweenService")
 	local Killaura = {Enabled = false}
-	local baseweld = game.Workspace.Camera.Viewmodel.RightHand.RightWrist.C0
-	local viewmdl = game.Workspace.Camera.Viewmodel.RightHand.RightWrist
-	local AnimDelay = tick()
-	local AnimTween
-	local armC0
-	local Attacking = false
-	killauraNearPlayer = Attacking
-	local Boxes = {}
-	local Particles = {}
+	local currentAnimationTrack
+	local animationId = bedwars.BlockController:getAnimationController():getAssetId(bedwars.AnimationUtil:fetchAnimationIndexId("SWORD_SWING"))
+	local killauraplaying = false
+	local oldNearPlayer
+	local killaurarange = {Value = 18}
+	local killauracurrentanim
+	local killaurarealremote = bedwars.Client:Get(bedwars.AttackRemote)
+	local killauraanimmethod = {Value = "Normal"}
+	local killaurarangecirclepart
+	local killauraparticlepart
+	local killaurawallscheck = {Enabled = false}
+	local killauraboxSize = Vector3.new(6, 9, 6)
+	local killauraparticle = {Enabled = false}
+	local killaurarangecircle = {Enabled = false}
+	local killauraangle = {Value = 360}
+	local killauratarget = {Enabled = false}
+	local killauracframe = {Enabled = false}
+	local animationdelay = tick()
+	local killaurabox = Instance.new("Part", workspace)
+	killaurabox.Size = Vector3.new(4,6,4)
+	killaurabox.Transparency = 0.5
+	killaurabox.Color = Color3.fromRGB(255, 255, 255)
+	killaurabox.CFrame = CFrame.new(0,10000,0)
+	killaurabox.CanCollide = false
+	killaurabox.Anchored = true
+	local killaurahighlightpart = Instance.new("Highlight", killaurabox)
+	killaurahighlightpart.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	killaurahighlightpart.OutlineTransparency = 1
+	killaurahighlightpart.FillColor = Color3.fromRGB(255, 255, 255)
 	
 	Killaura = vape.Categories.Blatant:CreateModule({
 		Name = "Killaura",
 		Function = function(callback)
-			if callback then 
-				if Killaura.Animation then
-					armC0 = game.Workspace.Camera.Viewmodel.RightHand.RightWrist.C0
-					
-					task.spawn(function()
-						local started = false
-						repeat
-							if Attacking then
-								local first = not started
-								started = true
-								
-								if Killaura.AnimationMode == "Random" then
-									anims.Random = {{CFrame = CFrame.Angles(math.rad(math.random(1, 360)), math.rad(math.random(1, 360)), math.rad(math.random(1, 360))), Time = 0.12}}
-								end
-								
-								for _, v in anims[Killaura.AnimationMode or "Normal"] do
-									local tt = first and (Killaura.NoTween and 0.001 or 0.1) or v.Time / (Killaura.AnimationSpeed or 1)
-									AnimTween = game:GetService("TweenService"):Create(viewmdl, TweenInfo.new(tt, Enum.EasingStyle.Linear), {
-										C0 = armC0 * v.CFrame
-									})
-									AnimTween:Play()
-									AnimTween.Completed:Wait()
-									first = false
-									if not (Killaura.Enabled and Attacking) then break end
-								end
-							elseif started then
-								started = false
-								AnimTween = game:GetService("TweenService"):Create(viewmdl, TweenInfo.new(Killaura.NoTween and 0.001 or 0.3, Enum.EasingStyle.Exponential), {
-									C0 = armC0
-								})
-								AnimTween:Play()
-							end
-							
-							if not started then
-								task.wait(1 / (Killaura.UpdateRate or 60))
-							end
-						until not (Killaura.Enabled and Killaura.Animation)
-					end)
-				end
+			if callback then
 				
-				auraconn = game:GetService("RunService").Heartbeat:Connect(function()
-					local targets = gettargets(Killaura.range or 18, Killaura.MaxTargets or 5, Killaura.AngleLimit or 360)
-					if #targets == 0 then 
-						Attacking = false
-						killauraNearPlayer = Attacking
-						return 
-					end
-					local weap = getweapon()
-					if Killaura.weaponcheck then
-						if not lplr.Character:FindFirstChild(weap.Name) then
-							return
+				task.spawn(function()
+					repeat
+						if killauraNearPlayer then
+							if killauraanimmethod.Value ~= "None" then
+								if killauraNearPlayer and isFirstPerson() then
+									local anim = auras[killauraanimmethod.Value]
+									for i, v in pairs(anim) do
+										pcall(function()
+											tweenService:Create(bedwars.ViewModel, TweenInfo.new(v.Time), {C0 = oldrotation * v.CFrame}):Play()
+										end)
+										task.wait(v.Time - 0.05)
+									end
+								else
+									pcall(function()
+										tweenService:Create(bedwars.ViewModel, TweenInfo.new(0.1), {C0 = oldrotation}):Play()
+									end)
+								end
+							end
 						end
-					else
-						if lplr.Character.InventoryFolder.Value:FindFirstChild(weap.Name) then
-							bedwars.Client:Get(bedwars.EquipItemRemote):InvokeServer({
-								["hand"] = lplr.Character.InventoryFolder.Value:WaitForChild(weap.Name)
-							})
+						task.wait()
+					until not Killaura.Enabled
+				end)
+
+				--[[task.spawn(function()
+					repeat
+						if killauraanimmethod.Value ~= "None" then
+							if killauraNearPlayer then
+								pcall(function()
+									if originalArmC0 == nil then
+										originalArmC0 = gameCamera.Viewmodel.RightHand.RightWrist.C0
+									end
+									if killauraplaying == false then
+										killauraplaying = true
+										for i,v in pairs(anims[killauraanimmethod.Value]) do
+											if (not Killaura.Enabled) or (not killauraNearPlayer) then break end
+											if not oldNearPlayer then
+												gameCamera.Viewmodel.RightHand.RightWrist.C0 = originalArmC0 * v.CFrame
+												continue
+											end
+											killauracurrentanim = tweenService:Create(gameCamera.Viewmodel.RightHand.RightWrist, TweenInfo.new(v.Time), {C0 = originalArmC0 * v.CFrame})
+											killauracurrentanim:Play()
+											task.wait(v.Time - 0.01)
+										end
+										killauraplaying = false
+									end
+								end)
+							end
 						end
-					end
-					Attacking = true
-					killauraNearPlayer = Attacking
-					for i, v in pairs(Boxes) do
-						v.Adornee = targets[i] and targets[i].Character.PrimaryPart or nil
-						if v.Adornee then
-							v.Color3 = Color3.fromHSV(Killaura.BoxColor.Hue, Killaura.BoxColor.Sat, Killaura.BoxColor.Value)
-							v.Transparency = 1 - Killaura.BoxColor.Opacity
+						task.wait()
+					until (not Killaura.Enabled)
+				end)--]]
+	
+				task.spawn(function()
+					repeat
+						if killauratarget.Enabled then
+							local plr = EntityNearPosition(killaurarange.Value, false)
+	
+							if plr then
+								killaurabox.Color = Color3.fromRGB(255, 255, 255)
+								killaurabox.CFrame = plr.Character.PrimaryPart.CFrame
+								killaurahighlightpart.FillColor = Color3.fromRGB(255, 255, 255)
+							else
+								killaurabox.CFrame = CFrame.new(0,1000,0)
+							end
 						end
-					end
-					for i, v in pairs(Particles) do
-						v.Position = targets[i] and targets[i].Character.PrimaryPart.Position or Vector3.new(9e9, 9e9, 9e9)
-						v.Parent = targets[i] and game.Workspace.CurrentCamera or nil
-					end
-					if Killaura.Face and targets[1] then
-						local vec = targets[1].Character.PrimaryPart.Position * Vector3.new(1, 0, 1)
-						lplr.Character.PrimaryPart.CFrame = CFrame.lookAt(
-							lplr.Character.PrimaryPart.Position,
-							Vector3.new(vec.X, lplr.Character.PrimaryPart.Position.Y, vec.Z)
-						)
-					end
-					
-					for _, targ in ipairs(targets) do
-						task.spawn(function()
-							bedwars.Client:Get(bedwars.AttackRemote):FireServer({
-								chargedAttack = {chargeRatio = 0},
-								entityInstance = targ.Character,
+						task.wait()
+					until not Killaura.Enabled
+				end)
+				
+				task.spawn(function()
+					repeat
+						local attacked = {}
+						local plr = EntityNearPosition(killaurarange.Value, false)
+						
+						if plr and entitylib.isAlive then
+							table.insert(attacked, plr)
+							local localfacing = entityLibrary.character.HumanoidRootPart.CFrame.lookVector
+							local vec = (plr.RootPart.Position - entityLibrary.character.HumanoidRootPart.Position).unit
+							local angle = math.acos(localfacing:Dot(vec))
+							if angle >= (math.rad(killauraangle.Value) / 2) then
+								return
+							end
+							local selfrootpos = entityLibrary.character.HumanoidRootPart.Position
+							if killaurawallscheck.Enabled then
+								if not Wallcheck(lplr.Character, plr.Character) then return end
+							end
+
+							local weapon = getSword()
+							if not weapon then return end
+		
+							switchItem(weapon.tool)
+
+							pcall(function()
+								if animationdelay <= tick() then
+									local swordmeta = bedwars.ItemTable[weapon.itemType]
+									animationdelay = tick() + (swordmeta.sword.respectAttackSpeedForEffects and swordmeta.sword.attackSpeed or 0.24)
+									bedwars.SwordController:playSwordEffect(swordmeta, false)
+									if swordmeta.displayName:find(" Scythe") then
+										bedwars.ScytheController:playLocalAnimation()
+									end
+								end
+							end)
+
+							killaurarealremote:FireServer({
+								weapon = weapon.tool,
+								chargedAttack = {chargeRatio = 100},
+								entityInstance = plr.Character,
 								validate = {
-									raycast = {
-										cameraPosition = game.Workspace.CurrentCamera.CFrame.Position,
-										cursorDirection = (targ.Character.PrimaryPart.Position - game.Workspace.CurrentCamera.CFrame.Position).Unit
-									},
-									targetPosition = {value = targ.Character.PrimaryPart.Position},
-									selfPosition = {value = lplr.Character.PrimaryPart.Position}
-								},
-								weapon = weap
+									targetPosition = {value = plr.Character.PrimaryPart.Position + Vector3.new(plr.Character.PrimaryPart.Velocity.X / 20, 0, plr.Character.PrimaryPart.Velocity.Z / 20)},
+									selfPosition = {value = lplr.Character.PrimaryPart.Position + Vector3.new(lplr.Character.PrimaryPart.Velocity.X / 20, 0, lplr.Character.PrimaryPart.Velocity.Z / 20)},
+								}
 							})
-						end)
-					end
+							
+							vapeTargetInfo.Targets.Killaura = {
+								Humanoid = {
+									Health = (plr.Character:GetAttribute("Health") or plr.Humanoid.Health) + getShieldAttribute(plr.Character),
+									MaxHealth = plr.Character:GetAttribute("MaxHealth") or plr.Humanoid.MaxHealth
+								},
+								Player = plr.Player
+							}
+		
+							if AutoHop.Enabled and lplr.Character.Humanoid.FloorMaterial ~= Enum.Material.Air then
+								lplr.Character.PrimaryPart.Velocity = Vector3.new(lplr.Character.PrimaryPart.Velocity.X, 30, lplr.Character.PrimaryPart.Velocity.Z)
+							end
+
+							local Root = entityLibrary.character.HumanoidRootPart
+							if Root then
+								if killaurarangecirclepart then
+									killaurarangecirclepart.Position = Root.Position - Vector3.new(0, entityLibrary.character.Humanoid.HipHeight, 0)
+								end
+								local Neck = entityLibrary.character.Head:FindFirstChild("Neck")
+								local LowerTorso = Root.Parent and Root.Parent:FindFirstChild("LowerTorso")
+								local RootC0 = LowerTorso and LowerTorso:FindFirstChild("Root")
+								if Neck and RootC0 then
+									if originalNeckC0 == nil then
+										originalNeckC0 = Neck.C0.p
+									end
+									if originalRootC0 == nil then
+										originalRootC0 = RootC0.C0.p
+									end
+									if originalRootC0 and killauracframe.Enabled then
+										if targetedPlayer ~= nil then
+											local targetPos = targetedPlayer.PrimaryPart.Position + Vector3.new(0, 2, 0)
+											local direction = (Vector3.new(targetPos.X, targetPos.Y, targetPos.Z) - entityLibrary.character.Head.Position).Unit
+											local direction2 = (Vector3.new(targetPos.X, Root.Position.Y, targetPos.Z) - Root.Position).Unit
+											local lookCFrame = (CFrame.new(Vector3.zero, (Root.CFrame):VectorToObjectSpace(direction)))
+											local lookCFrame2 = (CFrame.new(Vector3.zero, (Root.CFrame):VectorToObjectSpace(direction2)))
+											Neck.C0 = CFrame.new(originalNeckC0) * CFrame.Angles(lookCFrame.LookVector.Unit.y, 0, 0)
+											RootC0.C0 = lookCFrame2 + originalRootC0
+										else
+											Neck.C0 = CFrame.new(originalNeckC0)
+											RootC0.C0 = CFrame.new(originalRootC0)
+										end
+									end
+								end
+							end
+		
+							killauraNearPlayer = true
+						else
+							vapeTargetInfo.Targets.Killaura = nil
+							killauraNearPlayer = false
+						end
+						task.wait(#attacked > 0 and #attacked * 0.02 or 1 / 60)
+					until (not Killaura.Enabled)
 				end)
 			else
-				Attacking = false
-				killauraNearPlayer = Attacking
-				if auraconn then
-					auraconn:Disconnect()
-				end
-				if viewmdl then
-					game:GetService("TweenService"):Create(viewmdl, TweenInfo.new(0.1), {C0 = baseweld}):Play()
-				end
-				for _, v in pairs(Boxes) do
-					v.Adornee = nil
-				end
-				for _, v in pairs(Particles) do
-					v.Parent = nil
-				end
-				
-				table.clear(targetinfo.Targets)
+				killauraNearPlayer = false
+			end
+		end,
+	})
+	killaurarange = Killaura:CreateSlider({
+		Name = "Attack range",
+		Default = 18,
+		Min = 1,
+		Max = 22,
+		Function = function(val)
+			if killaurarangecirclepart then
+				killaurarangecirclepart.Size = Vector3.new(val * 0.7, 0.01, val * 0.7)
 			end
 		end
 	})
-
-	Killaura:CreateToggle({
-		Name = "Weapon Check",
+	killaurawallscheck = Killaura:CreateToggle({
+		Name = "Walls Check",
+		Function = function()
+			if Killaura.Enabled then
+				Killaura:Toggle()
+				Killaura:Toggle()
+			end
+		end,
+		Default = false
+	})
+	killaurarangecircle = Killaura:CreateToggle({
+		Name = "Range Visualizer",
 		Function = function(callback)
-			Killaura.weaponcheck = callback
+			if callback then
+				local suc, err = pcall(function()
+					if identifyexecutor and not string.find(string.lower(identifyexecutor()), "wave") --[[and not shared.CheatEngineMode--]] then
+						killaurarangecirclepart = Instance.new("MeshPart")
+						killaurarangecirclepart.MeshId = "rbxassetid://3726303797"
+						if shared.RiseMode and GuiLibrary.GUICoreColor and GuiLibrary.GUICoreColorChanged then
+							killaurarangecirclepart.Color = GuiLibrary.GUICoreColor
+							GuiLibrary.GUICoreColorChanged.Event:Connect(function()
+								killaurarangecirclepart.Color = GuiLibrary.GUICoreColor
+							end)
+						else
+							killaurarangecirclepart.Color = Color3.fromHSV(killauracolor["Hue"], killauracolor["Sat"], killauracolor.Value)
+							killauracolorChanged.Event:Connect(function()
+								killaurarangecirclepart.Color = Color3.fromHSV(killauracolor["Hue"], killauracolor["Sat"], killauracolor.Value)
+							end)
+						end
+						killaurarangecirclepart.CanCollide = false
+						killaurarangecirclepart.Anchored = true
+						killaurarangecirclepart.Material = Enum.Material.Neon
+						killaurarangecirclepart.Size = Vector3.new(killaurarange.Value * 0.7, 0.01, killaurarange.Value * 0.7)
+						if Killaura.Enabled then
+							killaurarangecirclepart.Parent = gameCamera
+						end
+						--bedwars.QueryUtil:setQueryIgnored(killaurarangecirclepart, true)
+					end
+				end)
+				if (not suc) then
+					pcall(function()
+						killaurarangecircle:ToggleButton(false)
+						InfoNotification("Killaura - Range Visualiser Circle", "There was an error creating the circle. Disabling...", 2)
+					end)
+				end
+			else
+				if killaurarangecirclepart then
+					killaurarangecirclepart:Destroy()
+					killaurarangecirclepart = nil
+				end
+			end
 		end
 	})
-
-	Killaura:CreateSlider({
-		Name = "Range",
-		Min = 1,
-		Max = 22,
-		Default = 18,
-		Function = function(val)
-			Killaura.range = val
-		end
+	killauracframe = Killaura:CreateToggle({
+		Name = "Face target",
+		Function = function() end,
+		HoverText = "Makes your character face the opponent."
 	})
-
-	Killaura:CreateSlider({
-		Name = "Max Targets",
-		Min = 1,
-		Max = 10,
-		Default = 5,
-		Function = function(val)
-			Killaura.MaxTargets = val
-		end
+	killauraanimmethod = Killaura:CreateDropdown({
+		Name = "Animation",
+		List = cleanTable(anims),
+		Function = function() end
 	})
-	
-	Killaura:CreateSlider({
-		Name = "Angle Limit",
+	killauraparticle = Killaura:CreateToggle({
+		Name = "Crit Particle",
+		Function = function(callback)
+			if callback then
+				killauraparticlepart = Instance.new("Part")
+				killauraparticlepart.Transparency = 1
+				killauraparticlepart.CanCollide = false
+				killauraparticlepart.Anchored = true
+				killauraparticlepart.Size = killauraboxSize
+				killauraparticlepart.Parent = cam
+				local particle = Instance.new("ParticleEmitter")
+				particle.Lifetime = NumberRange.new(0.5)
+				particle.Rate = 500
+				particle.Speed = NumberRange.new(0)
+				particle.RotSpeed = NumberRange.new(180)
+				particle.Texture = 'rbxassetid://14736249347'
+				particle.Enabled = true
+				particle.Size = NumberSequence.new(0.3)
+				particle.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(67, 10, 255)), ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 98, 255))})
+				particle.Parent = killauraparticlepart
+			else
+				if killauraparticlepart then
+					killauraparticlepart:Destroy()
+					killauraparticlepart = nil
+				end
+			end
+		end,
+		Default = true
+	})
+	killauraangle = Killaura:CreateSlider({
+		Name = "Max angle",
 		Min = 1,
 		Max = 360,
-		Default = 360,
-		Function = function(val)
-			Killaura.AngleLimit = val
-		end
+		Function = function() end,
+		Default = 360
 	})
-
-	Killaura:CreateToggle({
-		Name = "Animation",
-		Function = function(callback)
-			Killaura.Animation = callback
-		end
+	AutoHop = Killaura:CreateToggle({
+		Name = "AutoHop",
+		Function = function() end
 	})
-	Killaura:CreateToggle({
-		Name = "Face Target",
-		Function = function(callback)
-			Killaura.Face = callback
-		end
-	})
-	Killaura:CreateToggle({
-		Name = "No Animation Tween",
-		Function = function(callback)
-			Killaura.NoTween = callback
-		end
-	})
-	Killaura:CreateDropdown({
-		Name = "Animation Mode",
-		List = {"Normal", "Slow", "New", "Latest", "Vertical Spin", "Exhibition", "Exhibition Old", "Random"},
-		Function = function(val)
-			Killaura.AnimationMode = val
-		end
-	})
-	
-	Killaura:CreateSlider({
-		Name = "Animation Speed",
-		Min = 0.5,
-		Max = 2,
-		Default = 1,
-		Increment = 0.1,
-		Function = function(val)
-			Killaura.AnimationSpeed = val
-		end
-	})
-
-	Killaura:CreateSlider({
-		Name = "Update Rate",
-		Min = 1,
-		Max = 120,
-		Default = 60,
-		Function = function(val)
-			Killaura.UpdateRate = val
-		end
-	})
-	Killaura:CreateColorSlider({
-		Name = "Box Color",
-		Function = function(h, s, v, o)
-			Killaura.BoxColor = {
-				Hue = h,
-				Sat = s,
-				Value = v,
-				Opacity = o
-			}
-		end
+	killauratarget = Killaura:CreateToggle({
+		Name = "Target Visualiser",
+		Function = function() end
 	})
 end)
 
@@ -4393,15 +4552,84 @@ end)
 
 run(function()
 	local NoFall = {Enabled = false}
-	local oldfall
+	local SafeRange = {Value = 20}
+	local VelocityThreshold = {Value = 30}
+	local CoreConnection = {Disconnect = function() end}
+
+	local collectionService = game:GetService("CollectionService")
+	local vapeConnections = vapeConnections or {}
+
+	local blockRaycast = RaycastParams.new()
+	blockRaycast.FilterType = Enum.RaycastFilterType.Include
+
+	local blocks = collectionService:GetTagged("block") or {}
+	blockRaycast.FilterDescendantsInstances = {blocks}
+	table.insert(vapeConnections, collectionService:GetInstanceAddedSignal("block"):Connect(function(block)
+		table.insert(blocks, block)
+		blockRaycast.FilterDescendantsInstances = {blocks}
+	end))
+	table.insert(vapeConnections, collectionService:GetInstanceRemovedSignal("block"):Connect(function(block)
+		block = table.find(blocks, block)
+		if block then
+			table.remove(blocks, block)
+			blockRaycast.FilterDescendantsInstances = {blocks}
+		end
+	end))
+
 	NoFall = vape.Categories.Blatant:CreateModule({
 		Name = "NoFall",
 		Function = function(callback)
 			if callback then
-				bedwars.Client:Get("GroundHit"):FireServer()
+				task.spawn(function()
+					pcall(function() 
+						game:GetService("ReplicatedStorage"):WaitForChild("rbxts_include"):WaitForChild("node_modules"):WaitForChild("@rbxts"):WaitForChild("net"):WaitForChild("out"):WaitForChild("_NetManaged"):WaitForChild("TridentUnanchor"):Destroy()
+					end)
+				end)
+
+				local safeRange = SafeRange.Value
+				local velocityThreshold = -VelocityThreshold.Value
+				
+				CoreConnection = game:GetService("RunService").Heartbeat:Connect(function()
+					if not entitylib.isAlive then return end
+					if LongJump.Enabled then return end
+					local humanoid = entitylib.character.Humanoid
+					local rootPart = entitylib.character.HumanoidRootPart
+					if humanoid:GetState() == Enum.HumanoidStateType.Freefall and rootPart.Velocity.Y < velocityThreshold then
+						local ray = workspace:Raycast(rootPart.Position, Vector3.new(0, -1000, 0), blockRaycast)
+						if ray then
+							local distance = rootPart.Position.Y - ray.Position.Y
+							if distance > safeRange then
+								local newPosition = Vector3.new(
+									rootPart.Position.X,
+									ray.Position.Y + 0.1, 
+									rootPart.Position.Z
+								)
+								rootPart.CFrame = CFrame.new(newPosition) * rootPart.CFrame.Rotation
+							end
+						end
+					end
+				end)				
+			else
+				pcall(function()
+					CoreConnection:Disconnect()
+				end)
 			end
 		end,
 		HoverText = "Prevents taking fall damage."
+	})
+	SafeRange = NoFall:CreateSlider({
+		Name = "SafeRange",
+		Function = function() end,
+		Min = 10, 
+		Max = 30,
+		Default = 20
+	})
+	VelocityThreshold = NoFall:CreateSlider({
+		Name = "VelocityThreshold",
+		Function = function() end,
+		Min = 20, 
+		Max = 50,
+		Default = 30
 	})
 end)
 
@@ -4795,6 +5023,7 @@ run(function()
 		Name = "Speed",
 		Function = function(callback)
 			if callback then
+				if SpeedValue.Value == 23.3 then SpeedValue.Value = 21 end
 				shared.SpeedBoostEnabled = SpeedDamageBoost.Enabled
 				Speed:Clean(vapeEvents.EntityDamageEvent.Event:Connect(function(damageTable)
 					if damageTable.entityInstance == lplr.Character and (damageTable.damageType ~= 0 or damageTable.extra and damageTable.extra.chargeRatio ~= nil) and (not (damageTable.knockbackMultiplier and damageTable.knockbackMultiplier.disabled or damageTable.knockbackMultiplier and damageTable.knockbackMultiplier.horizontal == 0)) and SpeedDamageBoost.Enabled then 
@@ -4850,17 +5079,17 @@ run(function()
 	Speed.Restart = function()
 		if Speed.Enabled then Speed:Toggle(false); Speed:Toggle(false) end
 	end
-	SpeedDamageBoost = Speed:CreateToggle({
+	--[[SpeedDamageBoost = Speed:CreateToggle({
 		Name = "Damage Boost",
 		Function = Speed.Restart,
 		Default = true
-	})
+	})--]]
 	SpeedValue = Speed:CreateSlider({
 		Name = "Speed",
 		Min = 1,
-		Max = 23.3,
+		Max = 23,
 		Function = function(val) end,
-		Default = 23
+		Default = 21
 	})
 	SpeedValueLarge = Speed:CreateSlider({
 		Name = "Big Mode Speed",
@@ -8043,7 +8272,7 @@ run(function()
 	})--]]
 end)
 
-run(function()
+--[[run(function()
 	local PickupRangeRange = {Value = 1}
 	local PickupRange = {Enabled = false}
 	PickupRange = vape.Categories.Utility:CreateModule({
@@ -8077,7 +8306,7 @@ run(function()
 		Function = function() end,
 		Default = 10
 	})
-end)
+end)--]]
 
 --[[run(function()
 	local BowExploit = {Enabled = false}
@@ -8483,31 +8712,6 @@ run(function()
 			pcall(function() AntiVoidColor.Object.Visible = not call end)	
 			AntiVoid.Restart()
 		end
-	})
-end)
-
-run(function()
-	local oldhitblock
-	local AutoTool = vape.Categories.World:CreateModule({
-		Name = "AutoTool",
-		Function = function(callback)
-			if callback then
-				oldhitblock = bedwars.BlockBreaker.hitBlock
-				bedwars.BlockBreaker.hitBlock = function(self, maid, raycastparams, ...)
-					if (store.matchState ~= 0) then
-						local block = self.clientManager:getBlockSelector():getMouseInfo(1, {ray = raycastparams})
-						if block and block.target and not block.target.blockInstance:GetAttribute("NoBreak") and not block.target.blockInstance:GetAttribute("Team"..(lplr:GetAttribute("Team") or 0).."NoBreak") then
-							if switchToAndUseTool(block.target.blockInstance, true) then return end
-						end
-					end
-					return oldhitblock(self, maid, raycastparams, ...)
-				end
-			else
-				bedwars.BlockBreaker.hitBlock = oldhitblock
-				oldhitblock = nil
-			end
-		end,
-		HoverText = "Automatically swaps your hand to the appropriate tool."
 	})
 end)
 
