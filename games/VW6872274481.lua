@@ -29,6 +29,7 @@ local runservice = runService
 local CustomsAllowed = false
 
 local collectionService = game:GetService("CollectionService")
+local CollectionService = collectionService
 shared.vapewhitelist = vape.Libraries.whitelist
 local playersService = game:GetService("Players")
 if (not shared.GlobalBedwars) or (shared.GlobalBedwars and type(shared.GlobalBedwars) ~= "table") or (not shared.GlobalStore) or (shared.GlobalStore and type(shared.GlobalStore) ~= "table") then
@@ -173,8 +174,435 @@ local GetEnumItems = function() return {} end
 		return fonts
 	end
 
+--[[run(function()
+	local ChosenPack = {Value = "Realistic Pack"}
+	local TexturePacks = {Enabled = false}
+	TexturePacks = vape.Categories.Utility:CreateModule({
+		Name = "Texture Packs",
+		Tooltip = "Replaces the boring sword with a better texture pack.",
+		Function = function(callback)
+			if callback then 
+				task.spawn(function()
+					repeat task.wait() until store.matchState ~= 0
+					local function killPlayer(player)
+						local character = player.Character
+						if character then
+							local humanoid = character:FindFirstChildOfClass("Humanoid")
+							if humanoid then
+								humanoid.Health = 0
+							end
+						end
+					end
+					local canRespawn = function() end
+					canRespawn = function()
+						local success, response = pcall(function() 
+							return lplr.leaderstats.Bed.Value == '✅' 
+						end)
+						return success and response 
+					end
+					warningNotification("Texture packs", "Reset for the pack to work", 3)
+					--if canRespawn() then warningNotification("Texture packs", "Resetting for the texture to get applied", 5) killPlayer(lplr) else warningNotification("Texture packs", "Unable to reset your chatacter! Please do it manually", 3) end
+					TexturePacks.Enabled = false 
+					TexturePacks.Enabled = true 
+					if ChosenPack.Value == "Realistic Pack" then
+						local Services = {
+							Storage = game:GetService("ReplicatedStorage"),
+							Workspace = game:GetService("Workspace"),
+							Players = game:GetService("Players")
+						}
+						
+						local ASSET_ID = "rbxassetid://14431940695"
+						local PRIMARY_ROTATION = CFrame.Angles(0, -math.pi/4, 0)
+						
+						local ToolMaterials = {
+							sword = {"wood", "stone", "iron", "diamond", "emerald"},
+							pickaxe = {"wood", "stone", "iron", "diamond"},
+							axe = {"wood", "stone", "iron", "diamond"}
+						}
+						
+						local Offsets = {
+							sword = CFrame.Angles(0, -math.pi/2, -math.pi/2),
+							pickaxe = CFrame.Angles(0, -math.pi, -math.pi/2),
+							axe = CFrame.Angles(0, -math.pi/18, -math.pi/2)
+						}
+						
+						local ToolIndex = {}
+						
+						local function initializeToolIndex(asset)
+							for toolType, materials in pairs(ToolMaterials) do
+								for _, material in ipairs(materials) do
+									local identifier = material .. "_" .. toolType
+									local toolModel = asset:FindFirstChild(identifier)
+						
+									if toolModel then
+										--print("Found tool in initializeToolIndex:", identifier)
+										table.insert(ToolIndex, {
+											Name = identifier,
+											Offset = Offsets[toolType],
+											Model = toolModel
+										})
+									else
+										--warn("Model for " .. identifier .. " not found in initializeToolIndex!")
+									end
+								end
+							end
+						end
+						
+						local function adjustAppearance(part)
+							if part:IsA("BasePart") then
+								part.Transparency = 1
+							end
+						end
+						
+						local function attachModel(target, data, modifier)
+							local clonedModel = data.Model:Clone()
+							clonedModel.CFrame = target:FindFirstChild("Handle").CFrame * data.Offset * PRIMARY_ROTATION * (modifier or CFrame.new())
+							clonedModel.Parent = target
+						
+							local weld = Instance.new("WeldConstraint", clonedModel)
+							weld.Part0 = clonedModel
+							weld.Part1 = target:FindFirstChild("Handle")
+						end
+						
+						local function processTool(tool)
+							if not tool:IsA("Accessory") then return end
+						
+							for _, toolData in ipairs(ToolIndex) do
+								if toolData.Name == tool.Name then
+									for _, child in pairs(tool:GetDescendants()) do
+										adjustAppearance(child)
+									end
+									attachModel(tool, toolData)
+						
+									local playerTool = Services.Players.LocalPlayer.Character:FindFirstChild(tool.Name)
+									if playerTool then
+										for _, child in pairs(playerTool:GetDescendants()) do
+											adjustAppearance(child)
+										end
+										attachModel(playerTool, toolData, CFrame.new(0.4, 0, -0.9))
+									end
+								end
+							end
+						end
+						
+						
+						local loadedTools = game:GetObjects(ASSET_ID)
+						local mainAsset = loadedTools[1]
+						mainAsset.Parent = Services.Storage
+						
+						wait(1)
+						
+						
+						for _, child in pairs(mainAsset:GetChildren()) do
+							--print("Found tool in asset:", child.Name)
+						end
+						
+						initializeToolIndex(mainAsset)
+						Services.Workspace:WaitForChild("Camera").Viewmodel.ChildAdded:Connect(processTool)
+					elseif ChosenPack.Value == "32x Pack" then 
+						local Services = {
+							Storage = game:GetService("ReplicatedStorage"),
+							Workspace = game:GetService("Workspace"),
+							Players = game:GetService("Players")
+						}
+						
+						local ASSET_ID = "rbxassetid://14421314747"
+						local PRIMARY_ROTATION = CFrame.Angles(0, -math.pi/4, 0)
+						
+						local ToolMaterials = {
+							sword = {"wood", "stone", "iron", "diamond", "emerald"},
+							pickaxe = {"wood", "stone", "iron", "diamond"},
+							axe = {"wood", "stone", "iron", "diamond"}
+						}
+						
+						local Offsets = {
+							sword = CFrame.Angles(0, -math.pi/2, -math.pi/2),
+							pickaxe = CFrame.Angles(0, -math.pi, -math.pi/2),
+							axe = CFrame.Angles(0, -math.pi/18, -math.pi/2)
+						}
+						
+						local ToolIndex = {}
+						
+						local function initializeToolIndex(asset)
+							for toolType, materials in pairs(ToolMaterials) do
+								for _, material in ipairs(materials) do
+									local identifier = material .. "_" .. toolType
+									local toolModel = asset:FindFirstChild(identifier)
+						
+									if toolModel then
+										--print("Found tool in initializeToolIndex:", identifier)
+										table.insert(ToolIndex, {
+											Name = identifier,
+											Offset = Offsets[toolType],
+											Model = toolModel
+										})
+									else
+										--warn("Model for " .. identifier .. " not found in initializeToolIndex!")
+									end
+								end
+							end
+						end
+						
+						local function adjustAppearance(part)
+							if part:IsA("BasePart") then
+								part.Transparency = 1
+							end
+						end
+						
+						local function attachModel(target, data, modifier)
+							local clonedModel = data.Model:Clone()
+							clonedModel.CFrame = target:FindFirstChild("Handle").CFrame * data.Offset * PRIMARY_ROTATION * (modifier or CFrame.new())
+							clonedModel.Parent = target
+						
+							local weld = Instance.new("WeldConstraint", clonedModel)
+							weld.Part0 = clonedModel
+							weld.Part1 = target:FindFirstChild("Handle")
+						end
+						
+						local function processTool(tool)
+							if not tool:IsA("Accessory") then return end
+						
+							for _, toolData in ipairs(ToolIndex) do
+								if toolData.Name == tool.Name then
+									for _, child in pairs(tool:GetDescendants()) do
+										adjustAppearance(child)
+									end
+									attachModel(tool, toolData)
+						
+									local playerTool = Services.Players.LocalPlayer.Character:FindFirstChild(tool.Name)
+									if playerTool then
+										for _, child in pairs(playerTool:GetDescendants()) do
+											adjustAppearance(child)
+										end
+										attachModel(playerTool, toolData, CFrame.new(0.4, 0, -0.9))
+									end
+								end
+							end
+						end
+						
+						
+						local loadedTools = game:GetObjects(ASSET_ID)
+						local mainAsset = loadedTools[1]
+						mainAsset.Parent = Services.Storage
+						
+						wait(1)
+						
+						
+						for _, child in pairs(mainAsset:GetChildren()) do
+							--print("Found tool in asset:", child.Name)
+						end
+						
+						initializeToolIndex(mainAsset)
+						Services.Workspace:WaitForChild("Camera").Viewmodel.ChildAdded:Connect(processTool)
+					elseif ChosenPack.Value == "16x Pack" then 
+						local Services = {
+							Storage = game:GetService("ReplicatedStorage"),
+							Workspace = game:GetService("Workspace"),
+							Players = game:GetService("Players")
+						}
+						
+						local ASSET_ID = "rbxassetid://14474879594"
+						local PRIMARY_ROTATION = CFrame.Angles(0, -math.pi/4, 0)
+						
+						local ToolMaterials = {
+							sword = {"wood", "stone", "iron", "diamond", "emerald"},
+							pickaxe = {"wood", "stone", "iron", "diamond"},
+							axe = {"wood", "stone", "iron", "diamond"}
+						}
+						
+						local Offsets = {
+							sword = CFrame.Angles(0, -math.pi/2, -math.pi/2),
+							pickaxe = CFrame.Angles(0, -math.pi, -math.pi/2),
+							axe = CFrame.Angles(0, -math.pi/18, -math.pi/2)
+						}
+						
+						local ToolIndex = {}
+						
+						local function initializeToolIndex(asset)
+							for toolType, materials in pairs(ToolMaterials) do
+								for _, material in ipairs(materials) do
+									local identifier = material .. "_" .. toolType
+									local toolModel = asset:FindFirstChild(identifier)
+						
+									if toolModel then
+										--print("Found tool in initializeToolIndex:", identifier)
+										table.insert(ToolIndex, {
+											Name = identifier,
+											Offset = Offsets[toolType],
+											Model = toolModel
+										})
+									else
+										--warn("Model for " .. identifier .. " not found in initializeToolIndex!")
+									end
+								end
+							end
+						end
+						
+						local function adjustAppearance(part)
+							if part:IsA("BasePart") then
+								part.Transparency = 1
+							end
+						end
+						
+						local function attachModel(target, data, modifier)
+							local clonedModel = data.Model:Clone()
+							clonedModel.CFrame = target:FindFirstChild("Handle").CFrame * data.Offset * PRIMARY_ROTATION * (modifier or CFrame.new())
+							clonedModel.Parent = target
+						
+							local weld = Instance.new("WeldConstraint", clonedModel)
+							weld.Part0 = clonedModel
+							weld.Part1 = target:FindFirstChild("Handle")
+						end
+						
+						local function processTool(tool)
+							if not tool:IsA("Accessory") then return end
+						
+							for _, toolData in ipairs(ToolIndex) do
+								if toolData.Name == tool.Name then
+									for _, child in pairs(tool:GetDescendants()) do
+										adjustAppearance(child)
+									end
+									attachModel(tool, toolData)
+						
+									local playerTool = Services.Players.LocalPlayer.Character:FindFirstChild(tool.Name)
+									if playerTool then
+										for _, child in pairs(playerTool:GetDescendants()) do
+											adjustAppearance(child)
+										end
+										attachModel(playerTool, toolData, CFrame.new(0.4, 0, -0.9))
+									end
+								end
+							end
+						end
+						
+						
+						local loadedTools = game:GetObjects(ASSET_ID)
+						local mainAsset = loadedTools[1]
+						mainAsset.Parent = Services.Storage
+						
+						wait(1)
+						
+						
+						for _, child in pairs(mainAsset:GetChildren()) do
+							--print("Found tool in asset:", child.Name)
+						end
+						
+						initializeToolIndex(mainAsset)
+						Services.Workspace:WaitForChild("Camera").Viewmodel.ChildAdded:Connect(processTool)
+					elseif ChosenPack.Value == "Garbage" then 
+						local Services = {
+							Storage = game:GetService("ReplicatedStorage"),
+							Workspace = game:GetService("Workspace"),
+							Players = game:GetService("Players")
+						}
+						
+						local ASSET_ID = "rbxassetid://14336548540"
+						local PRIMARY_ROTATION = CFrame.Angles(0, -math.pi/4, 0)
+						
+						local ToolMaterials = {
+							sword = {"wood", "stone", "iron", "diamond", "emerald"},
+							pickaxe = {"wood", "stone", "iron", "diamond"},
+							axe = {"wood", "stone", "iron", "diamond"}
+						}
+						
+						local Offsets = {
+							sword = CFrame.Angles(0, -math.pi/2, -math.pi/2),
+							pickaxe = CFrame.Angles(0, -math.pi, -math.pi/2),
+							axe = CFrame.Angles(0, -math.pi/18, -math.pi/2)
+						}
+						
+						local ToolIndex = {}
+						
+						local function initializeToolIndex(asset)
+							for toolType, materials in pairs(ToolMaterials) do
+								for _, material in ipairs(materials) do
+									local identifier = material .. "_" .. toolType
+									local toolModel = asset:FindFirstChild(identifier)
+						
+									if toolModel then
+										--print("Found tool in initializeToolIndex:", identifier)
+										table.insert(ToolIndex, {
+											Name = identifier,
+											Offset = Offsets[toolType],
+											Model = toolModel
+										})
+									else
+										--warn("Model for " .. identifier .. " not found in initializeToolIndex!")
+									end
+								end
+							end
+						end
+						
+						local function adjustAppearance(part)
+							if part:IsA("BasePart") then
+								part.Transparency = 1
+							end
+						end
+						
+						local function attachModel(target, data, modifier)
+							local clonedModel = data.Model:Clone()
+							clonedModel.CFrame = target:FindFirstChild("Handle").CFrame * data.Offset * PRIMARY_ROTATION * (modifier or CFrame.new())
+							clonedModel.Parent = target
+						
+							local weld = Instance.new("WeldConstraint", clonedModel)
+							weld.Part0 = clonedModel
+							weld.Part1 = target:FindFirstChild("Handle")
+						end
+						
+						local function processTool(tool)
+							if not tool:IsA("Accessory") then return end
+						
+							for _, toolData in ipairs(ToolIndex) do
+								if toolData.Name == tool.Name then
+									for _, child in pairs(tool:GetDescendants()) do
+										adjustAppearance(child)
+									end
+									attachModel(tool, toolData)
+						
+									local playerTool = Services.Players.LocalPlayer.Character:FindFirstChild(tool.Name)
+									if playerTool then
+										for _, child in pairs(playerTool:GetDescendants()) do
+											adjustAppearance(child)
+										end
+										attachModel(playerTool, toolData, CFrame.new(0.4, 0, -0.9))
+									end
+								end
+							end
+						end
+						
+						
+						local loadedTools = game:GetObjects(ASSET_ID)
+						local mainAsset = loadedTools[1]
+						mainAsset.Parent = Services.Storage
+						
+						wait(1)
+						
+						
+						for _, child in pairs(mainAsset:GetChildren()) do
+							--print("Found tool in asset:", child.Name)
+						end
+						
+						initializeToolIndex(mainAsset)
+						Services.Workspace:WaitForChild("Camera").Viewmodel.ChildAdded:Connect(processTool)
+					end
+				end)
+			end
+		end
+	})
+	ChosenPack = TexturePacks:CreateDropdown({
+        Name = "Pack",
+        List = {
+            "Realistic Pack",
+            "32x Pack",
+            "16x Pack",
+            "Garbage",
+        },
+        Function = function() end,
+    })
+end)--]]
+
 run(function()
-	local PlayerLevelSet = {}
+	local PlayerLevelSet = {Enabled = false}
 	local PlayerLevel = {Value = 100}
 	PlayerLevelSet = vape.Categories.Misc:CreateModule({
 		Name = 'SetPlayerLevel',
@@ -188,7 +616,7 @@ run(function()
 	})
 	PlayerLevel = PlayerLevelSet:CreateSlider({
 		Name = 'Sets your desired player level',
-		Function = function() game.Players.LocalPlayer:SetAttribute("PlayerLevel", PlayerLevel.Value) end,
+		Function = function() if PlayerLevelSet.Enabled then game.Players.LocalPlayer:SetAttribute("PlayerLevel", PlayerLevel.Value) end end,
 		Min = 1,
 		Max = 100,
 		Default = 100
@@ -271,406 +699,298 @@ run(function()
     end
 end)
 
+local GodMode = {Enabled = false}
 run(function()
-    local tppos2 = nil
-    local TweenSpeed = 0.7
-    local HeightOffset = 5
-    local BedTP = {}
+    local antiDeath = {}
+    local antiDeathConfig = {
+        Mode = {},
+        BoostMode = {},
+        SongId = {},
+        Health = {},
+        Velocity = {},
+        CFrame = {},
+        TweenPower = {},
+        TweenDuration = {},
+        SkyPosition = {},
+        AutoDisable = {},
+        Sound = {},
+        Notify = {}
+    }
+    local antiDeathState = {}
+    local handlers = {}
 
-    local function teleportWithTween(char, destination)
-        local root = char:FindFirstChild("HumanoidRootPart")
-        if root then
-            destination = destination + Vector3.new(0, HeightOffset, 0)
-            local currentPosition = root.Position
-            if (destination - currentPosition).Magnitude > 0.5 then
-                local tweenInfo = TweenInfo.new(TweenSpeed, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
-                local goal = {CFrame = CFrame.new(destination)}
-                local tween = TweenService:Create(root, tweenInfo, goal)
-                tween:Play()
-                tween.Completed:Wait()
-				BedTP:Toggle(false)
-            end
-        end
+    function handlers.new()
+        local self = {
+			godmode = false,
+            boost = false,
+            inf = false,
+            notify = false,
+            id = false,
+            hrp = entityLibrary.character.HumanoidRootPart,
+            hasNotified = false
+        }
+        setmetatable(self, { __index = handlers })
+        return self
     end
 
-    local function killPlayer(player)
-        local character = player.Character
-        if character then
-            local humanoid = character:FindFirstChildOfClass("Humanoid")
-            if humanoid then
-                humanoid.Health = 0
+    function handlers:enable()
+		antiDeath:Clean(runService.Heartbeat:Connect(function()
+			if not isAlive(lplr, true) then
+                handlers:disable()
+                return
             end
-        end
-    end
 
-    local function getEnemyBed(range)
-        range = range or math.huge
-        local bed = nil
-        local player = lplr
-
-        if not isAlive(player, true) then 
-            return nil 
-        end
-
-        local localPos = player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character.HumanoidRootPart.Position or Vector3.zero
-        local playerTeam = player:GetAttribute('Team')
-        local beds = collectionService:GetTagged('bed')
-
-        for _, v in ipairs(beds) do 
-            if v:GetAttribute('PlacedByUserId') == 0 then
-                local bedTeam = v:GetAttribute('id'):sub(1, 1)
-                if bedTeam ~= playerTeam then 
-                    local bedPosition = v.Position
-                    local bedDistance = (localPos - bedPosition).Magnitude
-                    if bedDistance < range then 
-                        bed = v
-                        range = bedDistance
+            if getHealth() <= antiDeathConfig.Health.Value and getHealth() > 0 then
+                if not handlers.boost then
+                    handlers:activateMode()
+                    if not handlers.hasNotified and antiDeathConfig.Notify.Enabled then
+                        handlers:sendNotification()
                     end
+                    handlers:playNotificationSound()
+                    handlers.boost = true
+                end
+            else
+                handlers:resetMode()
+				pcall(function()
+					handlers.hrp = entityLibrary.character.HumanoidRootPart
+					handlers.hrp.Anchored = false
+				end)
+                handlers.boost = false
+
+                if handlers.hasNotified then
+                    handlers.hasNotified = false
                 end
             end
-        end
-
-        if not bed then 
-            warningNotification("BedTP", 'No enemy beds found. Total beds: '..#beds, 5)
-        else
-            --warningNotification("BedTP", 'Teleporting to bed at position: '..tostring(bed.Position), 3)
-			warningNotification("BedTP", 'Teleporting to bed at position: '..tostring(bed.Position), 3)
-        end
-
-        return bed
+		end))
     end
 
-    BedTP = vape.Categories.Blatant:CreateModule({
-        ["Name"] = "BedTP",
-        ["Function"] = function(callback)
+    function handlers:disable()
+        --RunLoops:UnbindFromHeartbeat('antiDeath')
+    end
+
+    function handlers:activateMode()
+        local modeActions = {
+            Infinite = function() self:enableInfiniteMode() end,
+            Boost = function() self:applyBoost() end,
+            Sky = function() self:moveToSky() end,
+			AntiHit = function() self:enableAntiHitMode() end
+        }
+		if antiDeathConfig.Mode.Value == "Infinite" then return end
+        modeActions[antiDeathConfig.Mode.Value]()
+    end
+
+	function handlers:enableAntiHitMode()
+		if not GodMode.Enabled then
+			GodMode:Toggle(false)
+			self.godmode = true
+		end
+	end
+
+    function handlers:enableInfiniteMode()
+        if not vape.Modules.InfiniteFly.Enabled then
+            vape.Modules.InfiniteFly:Toggle(true)
+            self.inf = true
+        end
+    end
+
+    function handlers:applyBoost()
+        local boostActions = {
+            Velocity = function() self.hrp.Velocity += Vector3.new(0, antiDeathConfig.Velocity.Value, 0) end,
+            CFrame = function() self.hrp.CFrame += Vector3.new(0, antiDeathConfig.CFrame.Value, 0) end,
+            Tween = function()
+                tweenService:Create(self.hrp, twinfo(antiDeathConfig.TweenDuration.Value / 10), {
+                    CFrame = self.hrp.CFrame + Vector3.new(0, antiDeathConfig.TweenPower.Value, 0)
+                }):Play()
+            end
+        }
+        boostActions[antiDeathConfig.BoostMode.Value]()
+    end
+
+    function handlers:moveToSky()
+        self.hrp.CFrame += Vector3.new(0, antiDeathConfig.SkyPosition.Value, 0)
+        self.hrp.Anchored = true
+    end
+
+    function handlers:sendNotification()
+        InfoNotification('AntiDeath', 'Prevented death. Health is lower than ' .. antiDeathConfig.Health.Value ..
+            '. (Current health: ' .. math.floor(getHealth() + 0.5) .. ')', 5)
+        self.hasNotified = true
+    end
+
+    function handlers:playNotificationSound()
+        if antiDeathConfig.Sound.Enabled then
+            local soundId = antiDeathConfig.SongId.Value ~= '' and antiDeathConfig.SongId.Value or '7396762708'
+            playSound(soundId, false)
+        end
+    end
+
+    function handlers:resetMode()
+        if self.inf then
+            if antiDeathConfig.AutoDisable.Enabled then
+                if vape.Modules.InfiniteFly.Enabled then
+                    vape.Modules.InfiniteFly:Toggle(false)
+                end
+            end
+            self.inf = false
+            self.hasNotified = false
+        elseif self.godmode then
+			if antiDeathConfig.AutoDisable.Enabled then
+                if GodMode.Enabled then
+                    GodMode:Toggle(false)
+                end
+            end
+            self.godmode = false
+            self.hasNotified = false
+		end
+    end
+
+    local antiDeathStatus = handlers.new()
+
+    antiDeath = vape.Categories.Utility:CreateModule({
+        Name = 'AntiDeath',
+        Function = function(callback)
             if callback then
-				task.spawn(function()
-					repeat task.wait() until vape.Modules.Invisibility
-					repeat task.wait() until vape.Modules.GamingChair
-					if vape.Modules.Invisibility.Enabled and vape.Modules.GamingChair.Enabled then
-						errorNotification("BedTP", "Please turn off the Invisibility and GamingChair module!", 3)
-						BedTP:Toggle()
-						return
-					end
-					if vape.Modules.Invisibility.Enabled then
-						errorNotification("BedTP", "Please turn off the Invisibility module!", 3)
-						BedTP:Toggle()
-						return
-					end
-					if vape.Modules.GamingChair.Enabled then
-						errorNotification("BedTP", "Please turn off the GamingChair module!", 3)
-						BedTP:Toggle()
-						return
-					end
-					BedTP:Clean(lplr.CharacterAdded:Connect(function(char)
-						if tppos2 then 
-							task.spawn(function()
-								local root = char:WaitForChild("HumanoidRootPart", 9000000000)
-								if root and tppos2 then 
-									teleportWithTween(char, tppos2)
-									tppos2 = nil
-								end
-							end)
-						end
-					end))
-					local bed = getEnemyBed()
-					if bed then 
-						tppos2 = bed.Position
-						killPlayer(lplr)
-					else
-						BedTP:Toggle(false)
-					end
-				end)
+                coroutine.wrap(function()
+                    antiDeathStatus:enable()
+                end)()
+            else
+                pcall(function()
+                    antiDeathStatus:disable()
+                end)
+            end
+        end,
+        Default = false,
+        Tooltip = btext('Prevents you from dying.'),
+        ExtraText = function()
+            return antiDeathConfig.Mode.Value
+        end
+    })
+
+    antiDeathConfig.Mode = antiDeath:CreateDropdown({
+        Name = 'Mode',
+        List = {'Infinite', 'Boost', 'Sky', 'AntiHit'},
+        Default = 'AntiHit',
+        Tooltip = btext('Mode to prevent death.'),
+        Function = function(val)
+            antiDeathConfig.BoostMode.Object.Visible = val == 'Boost'
+            antiDeathConfig.SkyPosition.Object.Visible = val == 'Sky'
+            antiDeathConfig.AutoDisable.Object.Visible = (val == 'Infinite' or val == 'AntiHit')
+            antiDeathConfig.Velocity.Object.Visible = false
+            antiDeathConfig.CFrame.Object.Visible = false
+            antiDeathConfig.TweenPower.Object.Visible = false
+            antiDeathConfig.TweenDuration.Object.Visible = false
+        end
+    })
+
+    antiDeathConfig.BoostMode = antiDeath:CreateDropdown({
+        Name = 'Boost',
+        List = { 'Velocity', 'CFrame', 'Tween' },
+        Default = 'Velocity',
+        Tooltip = btext('Mode to boost your character.'),
+        Function = function(val)
+            antiDeathConfig.Velocity.Object.Visible = val == 'Velocity'
+            antiDeathConfig.CFrame.Object.Visible = val == 'CFrame'
+            antiDeathConfig.TweenPower.Object.Visible = val == 'Tween'
+            antiDeathConfig.TweenDuration.Object.Visible = val == 'Tween'
+        end
+    })
+    antiDeathConfig.BoostMode.Object.Visible = false
+
+    antiDeathConfig.SongId = antiDeath:CreateTextBox({
+        Name = 'SongID',
+        TempText = 'Song ID',
+        Tooltip = 'ID to play the song.',
+        FocusLost = function()
+            if antiDeath.Enabled then
+                antiDeath:Toggle()
+                antiDeath:Toggle()
             end
         end
     })
-end)
+    antiDeathConfig.SongId.Object.Visible = false
 
-run(function()
-	local TweenService = game:GetService("TweenService")
-	local playersService = game:GetService("Players")
-	local lplr = playersService.LocalPlayer
-	
-	local tppos2
-	local deathtpmod = {["Enabled"] = false}
-	local TweenSpeed = 0.7
-	local HeightOffset = 5
+    antiDeathConfig.Health = antiDeath:CreateSlider({
+        Name = 'Health Trigger',
+        Min = 10,
+        Max = 90,
+        Tooltip = btext('Health at which AntiDeath will perform its actions.'),
+        Default = 50,
+        Function = function(val) end
+    })
 
-	local function teleportWithTween(char, destination)
-		local root = char:FindFirstChild("HumanoidRootPart")
-		if root then
-			destination = destination + Vector3.new(0, HeightOffset, 0)
-			local currentPosition = root.Position
-			if (destination - currentPosition).Magnitude > 0.5 then
-				local tweenInfo = TweenInfo.new(TweenSpeed, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
-				local goal = {CFrame = CFrame.new(destination)}
-				local tween = TweenService:Create(root, tweenInfo, goal)
-				tween:Play()
-				tween.Completed:Wait()
-			end
-		end
-	end
+    antiDeathConfig.Velocity = antiDeath:CreateSlider({
+        Name = 'Velocity Boost',
+        Min = 100,
+        Max = 600,
+        Tooltip = btext('Power to get boosted in the air.'),
+        Default = 600,
+        Function = function(val) end
+    })
+    antiDeathConfig.Velocity.Object.Visible = false
 
-	local function killPlayer(player)
-		local character = player.Character
-		if character then
-			local humanoid = character:FindFirstChildOfClass("Humanoid")
-			if humanoid then
-				humanoid.Health = 0
-			end
-		end
-	end
+    antiDeathConfig.CFrame = antiDeath:CreateSlider({
+        Name = 'CFrame Boost',
+        Min = 100,
+        Max = 1000,
+        Tooltip = btext('Power to get boosted in the air.'),
+        Default = 1000,
+        Function = function(val) end
+    })
+    antiDeathConfig.CFrame.Object.Visible = false
 
-	local function onCharacterAdded(char)
-		if tppos2 then 
-			task.spawn(function()
-				local root = char:WaitForChild("HumanoidRootPart", 9000000000)
-				if root and tppos2 then 
-					teleportWithTween(char, tppos2)
-					tppos2 = nil
-				end
-			end)
-		end
-	end
+    antiDeathConfig.TweenPower = antiDeath:CreateSlider({
+        Name = 'Tween Boost',
+        Min = 100,
+        Max = 1300,
+        Tooltip = btext('Power to get boosted in the air.'),
+        Default = 1000,
+        Function = function(val) end
+    })
+    antiDeathConfig.TweenPower.Object.Visible = false
 
-	vapeConnections[#vapeConnections + 1] = lplr.CharacterAdded:Connect(onCharacterAdded)
+    antiDeathConfig.TweenDuration = antiDeath:CreateSlider({
+        Name = 'Tween Duration',
+        Min = 1,
+        Max = 10,
+        Tooltip = btext('Duration of the tweening process.'),
+        Default = 4,
+        Function = function(val) end
+    })
+    antiDeathConfig.TweenDuration.Object.Visible = false
 
-	local function setTeleportPosition()
-		local UserInputService = game:GetService("UserInputService")
-		local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+    antiDeathConfig.SkyPosition = antiDeath:CreateSlider({
+        Name = 'Sky Position',
+        Min = 100,
+        Max = 1000,
+        Tooltip = btext('Position to TP in the sky.'),
+        Default = 1000,
+        Function = function(val) end
+    })
+    antiDeathConfig.SkyPosition.Object.Visible = false
 
-		if isMobile then
-			warningNotification("DeathTP", "Please tap on the screen to set TP position.", 3)
-			local connection
-			connection = UserInputService.TouchTapInWorld:Connect(function(inputPosition, processedByUI)
-				if not processedByUI then
-					local mousepos = lplr:GetMouse().UnitRay
-					local rayparams = RaycastParams.new()
-					rayparams.FilterDescendantsInstances = {game.Workspace.Map, game.Workspace:FindFirstChild("SpectatorPlatform")}
-					rayparams.FilterType = Enum.RaycastFilterType.Whitelist
-					local ray = game.Workspace:Raycast(mousepos.Origin, mousepos.Direction * 10000, rayparams)
-					if ray then 
-						tppos2 = ray.Position 
-						warningNotification("DeathTP", "Set TP Position. Resetting to teleport...", 3)
-						killPlayer(lplr)
-					end
-					connection:Disconnect()
-					deathtpmod["ToggleButton"](false)
-				end
-			end)
-		else
-			local mousepos = lplr:GetMouse().UnitRay
-			local rayparams = RaycastParams.new()
-			rayparams.FilterDescendantsInstances = {game.Workspace.Map, game.Workspace:FindFirstChild("SpectatorPlatform")}
-			rayparams.FilterType = Enum.RaycastFilterType.Whitelist
-			local ray = game.Workspace:Raycast(mousepos.Origin, mousepos.Direction * 10000, rayparams)
-			if ray then 
-				tppos2 = ray.Position 
-				warningNotification("DeathTP", "Set TP Position. Resetting to teleport...", 3)
-				killPlayer(lplr)
-			end
-			deathtpmod["ToggleButton"](false)
-		end
-	end
+    antiDeathConfig.AutoDisable = antiDeath:CreateToggle({
+        Name = 'Auto Disable',
+        Tooltip = btext('Automatically disables InfiniteFly after healing.'),
+        Function = function(val) end,
+        Default = true
+    })
+    antiDeathConfig.AutoDisable.Object.Visible = false
 
-	deathtpmod = vape.Categories.Blatant:CreateModule({
-		["Name"] = "DeathTP",
-		["Function"] = function(calling)
-			if calling then
-				task.spawn(function()
-					repeat task.wait() until vape.Modules.Invisibility
-					repeat task.wait() until vape.Modules.GamingChair
-					if vape.Modules.Invisibility.Enabled and vape.Modules.GamingChair.Enabled then
-						errorNotification("DeathTP", "Please turn off the Invisibility and GamingChair module!", 3)
-						deathtpmod:Toggle()
-						return
-					end
-					if vape.Modules.Invisibility.Enabled then
-						errorNotification("DeathTP", "Please turn off the Invisibility module!", 3)
-						deathtpmod:Toggle()
-						return
-					end
-					if vape.Modules.GamingChair.Enabled then
-						errorNotification("DeathTP", "Please turn off the GamingChair module!", 3)
-						deathtpmod:Toggle()
-						return
-					end
-					local canRespawn = function() end
-					canRespawn = function()
-						local success, response = pcall(function() 
-							return lplr.leaderstats.Bed.Value == '✅' 
-						end)
-						return success and response 
-					end
-					if not canRespawn() then 
-						warningNotification("DeathTP", "Unable to use DeathTP without bed!", 5)
-						deathtpmod:Toggle()
-					else
-						setTeleportPosition()
-					end
-				end)
-			end
-		end
-	})
-end)
+    antiDeathConfig.Sound = antiDeath:CreateToggle({
+        Name = 'Sound',
+        Tooltip = btext('Plays a sound after preventing death.'),
+        Function = function(callback)
+            antiDeathConfig.SongId.Object.Visible = callback
+        end,
+        Default = true
+    })
 
-local function GetTarget()
-	return entitylib.EntityPosition({
-		Part = 'RootPart',
-		Range = 1000,
-		Players = true,
-		NPCs = false,
-		Wallcheck = false
-	})
-end
-
-run(function()
-	local PlayerTP = {}
-	local PlayerTPTeleport = {Value = 'Respawn'}
-	local PlayerTPSort = {Value = 'Distance'}
-	local PlayerTPMethod = {Value = 'Linear'}
-	local PlayerTPAutoSpeed = {}
-	local PlayerTPSpeed = {Value = 200}
-	local PlayerTPTarget = {Value = ''}
-	local playertween
-	local oldmovefunc
-	local bypassmethods = {
-		Respawn = function() 
-			if isEnabled('InfiniteFly') then 
-				return 
-			end
-			if not canRespawn() then 
-				return 
-			end
-			for i = 1, 30 do 
-				if isAlive(lplr, true) and lplr.Character:WaitForChild("Humanoid"):GetState() ~= Enum.HumanoidStateType.Dead then
-					lplr.Character:WaitForChild("Humanoid"):TakeDamage(lplr.Character:WaitForChild("Humanoid").Health)
-					lplr.Character:WaitForChild("Humanoid"):ChangeState(Enum.HumanoidStateType.Dead)
-				end
-			end
-			lplr.CharacterAdded:Wait()
-			repeat task.wait() until isAlive(lplr, true) 
-			task.wait(0.1)
-			local target = GetTarget(nil, PlayerTPSort.Value == 'Health', true)
-			if target.RootPart == nil or not PlayerTP.Enabled then 
-				return
-			end
-			local localposition = lplr.Character:WaitForChild("HumanoidRootPart").Position
-			local tweenspeed = (PlayerTPAutoSpeed.Enabled and ((target.RootPart.Position - localposition).Magnitude / 470) + 0.001 * 2 or (PlayerTPSpeed.Value / 1000) + 0.1)
-			local tweenstyle = (PlayerTPAutoSpeed.Enabled and Enum.EasingStyle.Linear or Enum.EasingStyle[PlayerTPMethod.Value])
-			playertween = tweenService:Create(lplr.Character:WaitForChild("HumanoidRootPart"), TweenInfo.new(tweenspeed, tweenstyle), {CFrame = target.RootPart.CFrame}) 
-			playertween:Play() 
-			playertween.Completed:Wait()
-		end,
-		Instant = function() 
-			local target = GetTarget(nil, PlayerTPSort.Value == 'Health', true)
-			if target.RootPart == nil then 
-				return PlayerTP:Toggle()
-			end
-			lplr.Character:WaitForChild("HumanoidRootPart").CFrame = (target.RootPart.CFrame + Vector3.new(0, 5, 0)) 
-			PlayerTP:Toggle()
-		end,
-		Recall = function()
-			if not isAlive(lplr, true) or lplr.Character:WaitForChild("Humanoid").FloorMaterial == Enum.Material.Air then 
-				errorNotification('PlayerTP', 'Recall ability not available.', 7)
-				return 
-			end
-			if not bedwars.AbilityController:canUseAbility('recall') then 
-				errorNotification('PlayerTP', 'Recall ability not available.', 7)
-				return
-			end
-			pcall(function()
-				oldmovefunc = require(lplr.PlayerScripts.PlayerModule).controls.moveFunction 
-				require(lplr.PlayerScripts.PlayerModule).controls.moveFunction = function() end
-			end)
-			bedwars.AbilityController:useAbility('recall')
-			local teleported
-			PlayerTP:Clean(lplr:GetAttributeChangedSignal('LastTeleported'):Connect(function() teleported = true end))
-			repeat task.wait() until teleported or not PlayerTP.Enabled or not isAlive(lplr, true) 
-			task.wait()
-			local target = GetTarget(nil, PlayerTPSort.Value == 'Health', true)
-			if target.RootPart == nil or not isAlive(lplr, true) or not PlayerTP.Enabled then 
-				return
-			end
-			local localposition = lplr.Character:WaitForChild("HumanoidRootPart").Position
-			local tweenspeed = (PlayerTPAutoSpeed.Enabled and ((target.RootPart.Position - localposition).Magnitude / 1000) + 0.001 or (PlayerTPSpeed.Value / 1000) + 0.1)
-			local tweenstyle = (PlayerTPAutoSpeed.Enabled and Enum.EasingStyle.Linear or Enum.EasingStyle[PlayerTPMethod.Value])
-			playertween = tweenService:Create(lplr.Character:WaitForChild("HumanoidRootPart"), TweenInfo.new(tweenspeed, tweenstyle), {CFrame = target.RootPart.CFrame}) 
-			playertween:Play() 
-			playertween.Completed:Wait()
-		end
-	}
-	PlayerTP = vape.Categories.Blatant:CreateModule({
-		Name = 'PlayerTP',
-		Tooltip = 'Tweens you to a nearby target.',
-		Function = function(calling)
-			if calling then 
-				task.spawn(function()
-					repeat task.wait() until vape.Modules.Invisibility
-					repeat task.wait() until vape.Modules.GamingChair
-					if vape.Modules.Invisibility.Enabled and vape.Modules.GamingChair.Enabled then
-						errorNotification("PlayerTP", "Please turn off the Invisibility and GamingChair module!", 3)
-						PlayerTP:Toggle()
-						return
-					end
-					if vape.Modules.Invisibility.Enabled then
-						errorNotification("PlayerTP", "Please turn off the Invisibility module!", 3)
-						PlayerTP:Toggle()
-						return
-					end
-					if vape.Modules.GamingChair.Enabled then
-						errorNotification("PlayerTP", "Please turn off the GamingChair module!", 3)
-						PlayerTP:Toggle()
-						return
-					end
-					if GetTarget(nil, PlayerTPSort.Value == 'Health', true) and GetTarget(nil, PlayerTPSort.Value == 'Health', true).RootPart and shared.VapeFullyLoaded then 
-						bypassmethods[isAlive() and PlayerTPTeleport.Value or 'Respawn']() 
-					else
-						InfoNotification("PlayerTP", "No player/s found!", 3)
-					end
-					if PlayerTP.Enabled then 
-						PlayerTP:Toggle()
-					end
-				end)
-			else
-				pcall(function() playertween:Disconnect() end)
-				if oldmovefunc then 
-					pcall(function() require(lplr.PlayerScripts.PlayerModule).controls.moveFunction = oldmovefunc end)
-				end
-				oldmovefunc = nil
-			end
-		end
-	})
-	PlayerTPTeleport = PlayerTP:CreateDropdown({
-		Name = 'Teleport Method',
-		List = {'Respawn', 'Recall'},
-		Function = function() end
-	})
-	PlayerTPAutoSpeed = PlayerTP:CreateToggle({
-		Name = 'Auto Speed',
-		Tooltip = 'Automatically uses a "good" tween speed.',
-		Default = true,
-		Function = function(calling) 
-			if calling then 
-				pcall(function() PlayerTPSpeed.Object.Visible = false end) 
-			else 
-				pcall(function() PlayerTPSpeed.Object.Visible = true end) 
-			end
-		end
-	})
-	PlayerTPSpeed = PlayerTP:CreateSlider({
-		Name = 'Tween Speed',
-		Min = 20, 
-		Max = 350,
-		Default = 200,
-		Function = function() end
-	})
-	PlayerTPMethod = PlayerTP:CreateDropdown({
-		Name = 'Teleport Method',
-		List = GetEnumItems('EasingStyle'),
-		Function = function() end
-	})
-	PlayerTPSpeed.Object.Visible = false
+    antiDeathConfig.Notify = antiDeath:CreateToggle({
+        Name = 'Notification',
+        Tooltip = btext('Notifies you when AntiDeath actioned.'),
+        Default = true,
+        Function = function(callback) end
+    })
 end)
 
 run(function()
@@ -2889,6 +3209,180 @@ run(function()
 	})
 end)
 
+pcall(function()
+	local StaffDetector = {Enabled = false}
+	run(function()
+		local TPService = game:GetService('TeleportService')
+		local HTTPService = game:GetService("HttpService")
+		local StaffDetector_Connections = {}
+		local StaffDetector_Functions = {}
+		local StaffDetector_Extra = {
+			JoinNotifier = {Enabled = false}
+		}
+		local StaffDetector_Checks = {
+			CustomBlacklist = {
+				"chasemaser",
+				"OrionYeets",
+				"lIllllllllllIllIIlll",
+				"AUW345678",
+				"GhostWxstaken",
+				"throughthewindow009",
+				"YT_GoraPlays",
+				"IllIIIIlllIlllIlIIII",
+				"celisnix",
+				"7SlyR",
+				"DoordashRP",
+				"IlIIIIIlIIIIIIIllI",
+				"lIIlIlIllllllIIlI",
+				"IllIIIIIIlllllIIlIlI",
+				"asapzyzz",
+				"WhyZev",
+				"sworduserpro332",
+				"Muscular_Gorilla",
+				"Typhoon_Kang"
+			}
+		}
+		local StaffDetector_Action = {
+			DropdownValue = {Value = "Uninject"},
+			FunctionsTable = {
+				["Uninject"] = function() GuiLibrary.SelfDestruct() end, 
+				["Panic"] = function() 
+					task.spawn(function() coroutine.close(shared.saveSettingsLoop) end)
+					GuiLibrary.SaveSettings()
+					function GuiLibrary.SaveSettings() return warningNotification("GuiLibrary - SaveSettings", "Saving Settings has been prevented from staff detector!", 1.5) end
+					warningNotification("StaffDetector", "Saving settings has been disabled!", 1.5)
+					task.spawn(function()
+						repeat task.wait() until shared.vape.Modules.Panic
+						shared.vape.Modules.Panic:Toggle(false)
+					end)
+				end,
+				["Lobby"] = function() TPService:Teleport(6872265039) end
+			},
+		}
+		function StaffDetector_Functions.SaveStaffData(staff, detection_type)
+			local suc, res = pcall(function() return HTTPService:JSONDecode(readfile('vape/Libraries/StaffData.json')) end)
+			local json = suc and res or {}
+			table.insert(json, {StaffName = staff.DisplayName.."(@"..staff.Name..")", Time = os.time(), DetectionType = detection_type})
+			if (not isfolder('vape/Libraries')) then makefolder('vape/Libraries') end
+			writefile('vape/Libraries/StaffData.json', HTTPService:JSONEncode(json))
+		end
+		function StaffDetector_Functions.Notify(text)
+			pcall(function()
+				warningNotification("StaffDetector", tostring(text), 30)
+				game:GetService('StarterGui'):SetCore('ChatMakeSystemMessage', {Text = text, Color = Color3.fromRGB(255, 0, 0), Font = Enum.Font.GothamBold, FontSize = Enum.FontSize.Size24})
+			end)
+		end
+		function StaffDetector_Functions.Trigger(plr, det_type, addInfo)
+			StaffDetector_Functions.SaveStaffData(plr, det_type)
+			local text = plr.DisplayName.."(@"..plr.Name..") has been detected as staff via "..det_type.." detection type! "..StaffDetector_Action.DropdownValue.." action type will be used shortly."
+			if addInfo then text = text.." Additonal Info: "..addInfo end
+			StaffDetector_Functions.Notify(text)
+			StaffDetector_Action.FunctionsTable[StaffDetector_Action.DropdownValue]()
+		end
+		function StaffDetector_Checks:groupCheck(plr)
+			local suc, plrRank = pcall(function() plr:GetRankInGroup(5774246) end)
+			if (not suc) then plrRank = 0 end
+			local state, Type = false, nil
+			local Rank_Table = {[79029254] = "AC MOD", [86172137] = "Lead AC MOD (chase :D)", [43926962] = "Developer", [37929139] = "Developer", [87049509] = "Owner", [37929138] = "Owner"}
+			if StaffDetector_CustomBlacklist.YoutuberToggle.Enabled then Rank_Table[42378457] = "Youtuber/Famous" end
+			if Rank_Table[plrRank] then state = true; Type = Rank_Table[plrRank] end
+			if state then StaffDetector_Functions.Trigger(plr, "Group Check", "Rank: "..tostring(Type)) end
+		end
+		function StaffDetector_Checks:checkCustomBlacklist(plr) if table.find(self.CustomBlacklist, plr.Name) then StaffDetector_Functions.Trigger(plr, "CustomBlacklist") end end
+		function StaffDetector_Checks:checkPermissions(plr)
+			local KnitGotten, KnitClient
+			repeat
+				KnitGotten, KnitClient = pcall(function() return debug.getupvalue(require(lplr.PlayerScripts.TS.knit).setup, 6) end)
+				if KnitGotten then break end
+				task.wait()
+			until KnitGotten
+			repeat task.wait() until debug.getupvalue(KnitClient.Start, 1)
+			local PermissionController = KnitClient.Controllers.PermissionController
+			if KnitClient.Controllers.PermissionController:isStaffMember(plr) then StaffDetector_Functions.Trigger(plr, "PermissionController") end
+		end
+		function StaffDetector_Checks:check(plr)
+			task.spawn(function() pcall(function() self:checkCustomBlacklist(plr) end) end)
+			task.spawn(function() pcall(function() self:checkPermissions(plr) end) end)
+			task.spawn(function() pcall(function() self:groupCheck(plr) end) end)
+		end
+		StaffDetector = vape.Categories.Utility:CreateModule({
+			Name = "StaffDetector [NEW]",
+			Function = function(call)
+				if call then
+					for i,v in pairs(game:GetService("Players"):GetPlayers()) do if v ~= game:GetService("Players").LocalPlayer then StaffDetector_Checks:check(v) end end
+					StaffDetector:Clean(game:GetService("Players").PlayerAdded:Connect(function(v)
+						if StaffDetector.Enabled then 
+							StaffDetector_Checks:check(v) 
+							if StaffDetector_Extra.JoinNotifier.Enabled and store.matchState > 0 then warningNotification("StaffDetector", tostring(v.Name).." has joined!", 3) end
+						end
+					end))
+				else for i, v in pairs(StaffDetector_Connections) do if v.Disconnect then pcall(function() v:Disconnect() end) continue end; if v.disconnect then pcall(function() v:disconnect() end) continue end end end
+			end
+		})
+		StaffDetector.Restart = function() if StaffDetector.Enabled then StaffDetector:Toggle(false); StaffDetector:Toggle(false) end end
+		local list = {}
+		for i,v in pairs(StaffDetector_Action.FunctionsTable) do table.insert(list, i) end
+		StaffDetector_Action.DropdownValue = StaffDetector:CreateDropdown({Name = 'Action', List = list, Function = function() end})
+		StaffDetector_Extra.JoinNotifier = StaffDetector:CreateToggle({Name = "Illegal player notifier", Function = StaffDetector.Restart, Default = true})
+	end)
+	
+	task.spawn(function()
+		pcall(function()
+			repeat task.wait() until shared.VapeFullyLoaded
+			if (not StaffDetector.Enabled) then StaffDetector:Toggle(false) end
+		end)
+	end)
+end)	
+
+run(function()
+	local ZoomUnlocker = {Enabled = false}
+	local ZoomUnlockerMode = {Value = 'Infinite'}
+	local ZoomUnlockerZoom = {Value = 500}
+	local ZoomConnection, OldZoom = nil, nil
+	ZoomUnlocker = vape.Categories.Utility:CreateModule({
+		Name = 'ZoomUnlocker',
+        Tooltip = 'Unlocks the abillity to zoom more.',
+		Function = function(callback)
+			if callback then
+				OldZoom = lplr.CameraMaxZoomDistance
+				ZoomUnlocker = runService.Heartbeat:Connect(function()
+					if ZoomUnlockerMode.Value == 'Infinite' then
+						lplr.CameraMaxZoomDistance = 9e9
+					else
+						lplr.CameraMaxZoomDistance = ZoomUnlockerZoom.Value
+					end
+				end)
+			else
+				if ZoomUnlocker then ZoomUnlocker:Disconnect() end
+				lplr.CameraMaxZoomDistance = OldZoom
+				OldZoom = nil
+			end
+		end,
+        Default = false,
+		ExtraText = function()
+            return ZoomUnlockerMode.Value
+        end
+	})
+	ZoomUnlockerMode = ZoomUnlocker:CreateDropdown({
+		Name = 'Mode',
+		List = {
+			'Infinite',
+			'Custom'
+		},
+		Tooltip = 'Mode to unlock the zoom.',
+		Value = 'Infinite',
+		Function = function() end
+	})
+	ZoomUnlockerZoom = ZoomUnlocker:CreateSlider({
+		Name = 'Zoom',
+		Min = OldZoom or 13,
+		Max = 1000,
+		Tooltip = 'Amount to unlock the zoom.',
+		Function = function() end,
+		Default = 500
+	})
+end)
+
 run(function()
     local GuiLibrary = shared.GuiLibrary
 	local texture_pack = {};
@@ -3429,89 +3923,6 @@ run(function()
 	});
 end)
 
-run(function()
-	local invis = {};
-	local invisbaseparts = safearray();
-	local invisroot = {};
-	local invisrootcolor = newcolor();
-	local invisanim = Instance.new('Animation');
-	local invisrenderstep;
-	local invistask;
-	local invshumanim;
-	local SpiderDisabled = false
-	invis = vape.Categories.Blatant:CreateModule({
-		Name = 'Invisibility',
-		Tooltip = 'Plays an animation which makes it harder\nfor targets to see you.',
-		Function = function(calling)
-			local invisFunction = function()
-				pcall(task.cancel, invistask);
-				pcall(function() invisrenderstep:Disconnect() end);
-				repeat task.wait() until isAlive(lplr, true);
-				for i,v in lplr.Character:GetDescendants() do 
-					pcall(function()
-						if v.ClassName:lower():find('part') and v.CanCollide and v ~= lplr.Character:FindFirstChild('HumanoidRootPart') then 
-							v.CanCollide = false;
-							table.insert(invisbaseparts, v);
-						end 
-					end)
-				end;
-				invis:Clean(lplr.Character.DescendantAdded:Connect(function(v)
-					pcall(function()
-						if v.ClassName:lower():find('part') and v.CanCollide and v ~= lplr.Character:FindFirstChild('HumanoidRootPart') then 
-							v.CanCollide = false;
-							table.insert(invisbaseparts, v);
-						end
-					end) 
-				end))
-				task.spawn(function()
-					invis:Clean(runservice.Stepped:Connect(function()
-						for i,v in invisbaseparts do 
-							v.CanCollide = false;
-						end
-					end))
-				end)
-				invisanim.AnimationId = 'rbxassetid://11335949902';
-				local anim = lplr.Character:WaitForChild("Humanoid").Animator:LoadAnimation(invisanim);
-				invishumanim = anim;
-				repeat 
-					task.wait()
-					if vape.Modules.AnimationPlayer.Enabled then 
-						vape.Modules.AnimationPlayer:Toggle();
-					end
-					pcall(function() 
-						anim:AdjustSpeed(0);
-						anim:Stop() 
-					end)
-					lplr.Character.PrimaryPart.Transparency = invisroot.Enabled and 0.6 or 1;
-					lplr.Character.PrimaryPart.Color = Color3.fromHSV(invisrootcolor.Hue, invisrootcolor.Sat, invisrootcolor.Value);
-					anim:Play(0.1, 9e9, 0.1);
-				until (not invis.Enabled)
-			end;
-			if calling then
-				invistask = task.spawn(invisFunction);
-				invis:Clean(lplr.CharacterAdded:Connect(invisFunction))
-			else 
-				pcall(function()
-					invishumanim:AdjustSpeed(0);
-					invishumanim:Stop();
-				end);
-				pcall(task.cancel, invistask)
-			end
-		end
-	})
-	invisroot = invis:CreateToggle({
-		Name = 'Show Root',
-		Default = true,
-		Function = function(calling)
-			pcall(function() invisrootcolor.Object.Visible = calling; end)
-		end
-	})
-	invisrootcolor = invis:CreateColorSlider({
-		Name = 'Root Color',
-		Function = void
-	})
-end)
-
 local GuiLibrary = shared.GuiLibrary
 shared.slowmode = 0
 
@@ -3756,3 +4167,101 @@ run(function()
 		end
 	})
 end)
+
+if not shared.CheatEngineMode then
+	run(function()
+		local AntiLagback = {Enabled = false}
+		local control_module = require(lplr:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule")).controls
+		local old = control_module.moveFunction
+		local clone
+		local connection
+		local function clone_lplr_char()
+			if not (lplr.Character ~= nil and lplr.Character.PrimaryPart ~= nil) then return nil end
+			lplr.Character.Archivable = true
+		
+			local clone = lplr.Character:Clone()
+		
+			clone.Parent = game.Workspace
+			clone.Name = "Clone"
+		
+			clone.PrimaryPart.CFrame = lplr.Character.PrimaryPart.CFrame
+		
+			gameCamera.CameraSubject = clone.Humanoid	
+		
+			task.spawn(function()
+				for i, v in next, clone:FindFirstChild("Head"):GetDescendants() do
+					v:Destroy()
+				end
+				for i, v in next, clone:GetChildren() do
+					if v:IsA("BasePart") and v.Name ~= "HumanoidRootPart" then
+						v.Transparency = 1
+					end
+					if v:IsA("Accessory") then
+						v:FindFirstChild("Handle").Transparency = 1
+					end
+				end
+			end)
+			return clone
+		end
+		local function bypass()
+			clone = clone_lplr_char()
+			if not entitylib.isAlive then return AntiLagback:Toggle() end
+			if not clone then return AntiLagback:Toggle() end
+			control_module.moveFunction = function(self, vec, ...)
+				local RaycastParameters = RaycastParams.new()
+	
+				RaycastParameters.FilterType = Enum.RaycastFilterType.Include
+				RaycastParameters.FilterDescendantsInstances = {CollectionService:GetTagged("block")}
+	
+				local LookVector = Vector3.new(gameCamera.CFrame.LookVector.X, 0, gameCamera.CFrame.LookVector.Z).Unit
+	
+				if clone.PrimaryPart then
+					local Raycast = game.Workspace:Raycast((clone.PrimaryPart.Position + LookVector), Vector3.new(0, -1000, 0), RaycastParameters)
+					local Raycast2 = game.Workspace:Raycast(((clone.PrimaryPart.Position - Vector3.new(0, 15, 0)) + (LookVector * 3)), Vector3.new(0, -1000, 0), RaycastParameters)
+	
+					if Raycast or Raycast2 then
+						clone.PrimaryPart.CFrame = CFrame.new(clone.PrimaryPart.Position + (LookVector / (GetSpeed())))
+						vec = LookVector
+					end
+	
+					if (not clone) and entitylib.isAlive then
+						control_module.moveFunction = OldMoveFunction
+						gameCamera.CameraSubject = lplr.Character.Humanoid
+					end
+				end
+	
+				return old(self, vec, ...)
+			end
+		end
+		local function safe_revert()
+			control_module.moveFunction = old
+			if entitylib.isAlive then
+				gameCamera.CameraSubject = lplr.Character:WaitForChild("Humanoid")
+			end
+			pcall(function()
+				clone:Destroy()
+			end)
+		end
+		AntiLagback = vape.Categories.Blatant:CreateModule({
+			Name = "AntiLagback",
+			Function = function(call)
+				if call then
+					connection = lplr:GetAttributeChangedSignal("LastTeleported"):Connect(function()
+						if entitylib.isAlive and store.matchState ~= 0 and not lplr.Character:FindFirstChildWhichIsA("ForceField") and (not vape.Modules.BedTP.Enabled) and (not vape.Modules.PlayerTP.Enabled) then					
+							bypass()
+							task.wait(4.5)
+							safe_revert()
+						end 
+					end)
+				else
+					pcall(function() connection:Disconnect() end)
+					control_module.moveFunction = old
+					if entitylib.isAlive then
+						gameCamera.CameraSubject = lplr.Character:WaitForChild("Humanoid")
+					end
+					pcall(function() clone:Destroy() end)
+				end
+			end
+		})
+	end)
+end
