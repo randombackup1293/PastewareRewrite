@@ -5441,140 +5441,144 @@ end)
 
 local antivoidvelo
 run(function()
-	local Speed = {Enabled = false}
-	local SpeedMode = {Value = "CFrame"}
-	local SpeedValue = {Value = 1}
-	local SpeedValueLarge = {Value = 1}
-	local SpeedJump = {Enabled = false}
-	local SpeedJumpHeight = {Value = 20}
-	local SpeedJumpAlways = {Enabled = false}
-	local SpeedJumpSound = {Enabled = false}
-	local SpeedJumpVanilla = {Enabled = false}
-	local SpeedAnimation = {Enabled = false}
-	local SpeedDamageBoost = {Enabled = false}
-	local raycastparameters = RaycastParams.new()
-	local damagetick = tick()
+    local Speed = {Enabled = false}
+    local SpeedMode = {Value = "CFrame"}
+    local SpeedValue = {Value = 1}
+    local SpeedValueLarge = {Value = 1}
+    local SpeedJump = {Enabled = false}
+    local SpeedJumpHeight = {Value = 20}
+    local SpeedJumpAlways = {Enabled = false}
+    local SpeedJumpSound = {Enabled = false}
+    local SpeedJumpVanilla = {Enabled = false}
+    local SpeedAnimation = {Enabled = false}
+    local SpeedDamageBoost = {Enabled = false}
+    local raycastparameters = RaycastParams.new()
+    local damagetick = tick()
 
-	local alternatelist = {"Normal", "AntiCheat A", "AntiCheat B"}
-	Speed = vape.Categories.Blatant:CreateModule({
-		Name = "Speed",
-		Function = function(callback)
-			if callback then
-				if SpeedValue.Value == 23.3 then SpeedValue.Value = 21 end
-				shared.SpeedBoostEnabled = SpeedDamageBoost.Enabled
-				Speed:Clean(vapeEvents.EntityDamageEvent.Event:Connect(function(damageTable)
-					if damageTable.entityInstance == lplr.Character and (damageTable.damageType ~= 0 or damageTable.extra and damageTable.extra.chargeRatio ~= nil) and (not (damageTable.knockbackMultiplier and damageTable.knockbackMultiplier.disabled or damageTable.knockbackMultiplier and damageTable.knockbackMultiplier.horizontal == 0)) and SpeedDamageBoost.Enabled then 
-						damagetick = tick() + 0.4
-						lastdamagetick = tick() + 0.4
-					end
-				end))
-				Speed:Clean(runservice.Heartbeat:Connect(function(delta)
-					if entityLibrary.isAlive then
-						if not (isnetworkowner(entityLibrary.character.HumanoidRootPart) and entityLibrary.character.Humanoid:GetState() ~= Enum.HumanoidStateType.Climbing and (not spiderActive) and (not vape.Modules.InfiniteFly.Enabled) and (not vape.Modules.Fly.Enabled)) then return end
-						if vape.Modules.GrappleExploitOptionsButton and vape.Modules.GrappleExploit.Enabled then return end
-						if LongJump.Enabled then return end
-						if SpeedAnimation.Enabled then
-							for i, v in pairs(entityLibrary.character.Humanoid:GetPlayingAnimationTracks()) do
-								if v.Name == "WalkAnim" or v.Name == "RunAnim" then
-									v:AdjustSpeed(entityLibrary.character.Humanoid.WalkSpeed / 16)
-								end
-							end
-						end
+    local alternatelist = {"Normal", "AntiCheat A", "AntiCheat B"}
+    Speed = vape.Categories.Blatant:CreateModule({
+        Name = "Speed",
+        Function = function(callback)
+            if callback then
+                if SpeedValue.Value == 23.3 then SpeedValue.Value = 21 end
+                shared.SpeedBoostEnabled = SpeedDamageBoost.Enabled
+                Speed:Clean(vapeEvents.EntityDamageEvent.Event:Connect(function(damageTable)
+                    if damageTable.entityInstance == lplr.Character and (damageTable.damageType ~= 0 or damageTable.extra and damageTable.extra.chargeRatio ~= nil) and (not (damageTable.knockbackMultiplier and damageTable.knockbackMultiplier.disabled or damageTable.knockbackMultiplier and damageTable.knockbackMultiplier.horizontal == 0)) and SpeedDamageBoost.Enabled then 
+                        damagetick = tick() + 0.4
+                        lastdamagetick = tick() + 0.4
+                    end
+                end))
+                Speed:Clean(runservice.Heartbeat:Connect(function(delta)
+                    if entityLibrary.isAlive then
+                        if not (isnetworkowner(entityLibrary.character.HumanoidRootPart) and entityLibrary.character.Humanoid:GetState() ~= Enum.HumanoidStateType.Climbing and (not spiderActive) and (not vape.Modules.InfiniteFly.Enabled) and (not vape.Modules.Fly.Enabled)) then return end
+                        if vape.Modules.GrappleExploitOptionsButton and vape.Modules.GrappleExploit.Enabled then return end
+                        if LongJump.Enabled then return end
+                        if SpeedAnimation.Enabled then
+                            for i, v in pairs(entityLibrary.character.Humanoid:GetPlayingAnimationTracks()) do
+                                if v.Name == "WalkAnim" or v.Name == "RunAnim" then
+                                    v:AdjustSpeed(entityLibrary.character.Humanoid.WalkSpeed / 16)
+                                end
+                            end
+                        end
 
-						local speedValue = damagetick > tick() and SpeedValue.Value * 2.25 - 1 or SpeedValue.Value + getSpeed()
-						local speedVelocity = entityLibrary.character.Humanoid.MoveDirection * (SpeedMode.Value == "Normal" and SpeedValue.Value or 20)
-						entityLibrary.character.HumanoidRootPart.Velocity = antivoidvelo or Vector3.new(speedVelocity.X, entityLibrary.character.HumanoidRootPart.Velocity.Y, speedVelocity.Z)
-						if SpeedMode.Value ~= "Normal" then
-							local speedCFrame = entityLibrary.character.Humanoid.MoveDirection * (speedValue - 20) * delta
-							raycastparameters.FilterDescendantsInstances = {lplr.Character}
-							local ray = game.Workspace:Raycast(entityLibrary.character.HumanoidRootPart.Position, speedCFrame, raycastparameters)
-							if ray then speedCFrame = (ray.Position - entityLibrary.character.HumanoidRootPart.Position) end
-							entityLibrary.character.HumanoidRootPart.CFrame = entityLibrary.character.HumanoidRootPart.CFrame + speedCFrame
-						end
-						
-						print("speedCFrame:", speedCFrame)
-						print("ray:", ray)
-						if ray then print("ray.Position:", ray.Position) end
+                        local speedValue = damagetick > tick() and SpeedValue.Value * 2.25 - 1 or SpeedValue.Value + getSpeed()
+                        local speedVelocity = entityLibrary.character.Humanoid.MoveDirection * (SpeedMode.Value == "Normal" and SpeedValue.Value or 20)
+                        entityLibrary.character.HumanoidRootPart.Velocity = antivoidvelo or Vector3.new(speedVelocity.X, entityLibrary.character.HumanoidRootPart.Velocity.Y, speedVelocity.Z)
 
-						if SpeedJump.Enabled and (not Scaffold.Enabled) and (SpeedJumpAlways.Enabled or killauraNearPlayer) then
-							if (entityLibrary.character.Humanoid.FloorMaterial ~= Enum.Material.Air) and entityLibrary.character.Humanoid.MoveDirection ~= Vector3.zero then
-								if SpeedJumpSound.Enabled then
-									pcall(function() entityLibrary.character.HumanoidRootPart.Jumping:Play() end)
-								end
-								if SpeedJumpVanilla.Enabled then
-									entityLibrary.character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-								else
-									entityLibrary.character.HumanoidRootPart.Velocity = Vector3.new(entityLibrary.character.HumanoidRootPart.Velocity.X, SpeedJumpHeight.Value, entityLibrary.character.HumanoidRootPart.Velocity.Z)
-								end
-							end
-						end
-					end
-				end))
-			end
-		end,
-		HoverText = "Increases your movement.",
-		ExtraText = function()
-			return "Heatseeker"
-		end
-	})
-	Speed.Restart = function()
-		if Speed.Enabled then Speed:Toggle(false); Speed:Toggle(false) end
-	end
-	--[[SpeedDamageBoost = Speed:CreateToggle({
-		Name = "Damage Boost",
-		Function = Speed.Restart,
-		Default = true
-	})--]]
-	SpeedValue = Speed:CreateSlider({
-		Name = "Speed",
-		Min = 1,
-		Max = 23,
-		Function = function(val) end,
-		Default = 21
-	})
-	SpeedValueLarge = Speed:CreateSlider({
-		Name = "Big Mode Speed",
-		Min = 1,
-		Max = 23,
-		Function = function(val) end,
-		Default = 23
-	})
-	SpeedJump = Speed:CreateToggle({
-		Name = "AutoJump",
-		Function = function(callback)
-			if SpeedJumpHeight.Object then SpeedJumpHeight.Object.Visible = callback end
-			if SpeedJumpAlways.Object then
-				SpeedJumpAlways.Object.Visible = callback
-			end
-			if SpeedJumpSound.Object then SpeedJumpSound.Object.Visible = callback end
-			if SpeedJumpVanilla.Object then SpeedJumpVanilla.Object.Visible = callback end
-		end,
-		Default = true
-	})
-	SpeedJumpHeight = Speed:CreateSlider({
-		Name = "Jump Height",
-		Min = 0,
-		Max = 30,
-		Default = 25,
-		Function = function() end
-	})
-	SpeedJumpAlways = Speed:CreateToggle({
-		Name = "Always Jump",
-		Function = function() end
-	})
-	SpeedJumpSound = Speed:CreateToggle({
-		Name = "Jump Sound",
-		Function = function() end
-	})
-	SpeedJumpVanilla = Speed:CreateToggle({
-		Name = "Real Jump",
-		Function = function() end
-	})
-	SpeedAnimation = Speed:CreateToggle({
-		Name = "Slowdown Anim",
-		Function = function() end
-	})
+                        if SpeedMode.Value ~= "Normal" then
+                            local adjustedSpeed = math.max(speedValue - 20, 0)
+                            local speedCFrame = entityLibrary.character.Humanoid.MoveDirection * adjustedSpeed * delta
+
+                            if typeof(raycastparameters) ~= "RaycastParams" then
+                                raycastparameters = RaycastParams.new()
+                            end
+                            raycastparameters.FilterDescendantsInstances = {lplr.Character}
+
+                            if speedCFrame.Magnitude > 0 then
+                                local ray = game.Workspace:Raycast(entityLibrary.character.HumanoidRootPart.Position, speedCFrame, raycastparameters)
+                                if ray and ray.Position then
+                                    speedCFrame = (ray.Position - entityLibrary.character.HumanoidRootPart.Position)
+                                end
+                            end
+
+                            entityLibrary.character.HumanoidRootPart.CFrame = entityLibrary.character.HumanoidRootPart.CFrame + speedCFrame
+                        end
+
+                        if SpeedJump.Enabled and (not Scaffold.Enabled) and (SpeedJumpAlways.Enabled or killauraNearPlayer) then
+                            if (entityLibrary.character.Humanoid.FloorMaterial ~= Enum.Material.Air) and entityLibrary.character.Humanoid.MoveDirection ~= Vector3.zero then
+                                if SpeedJumpSound.Enabled then
+                                    pcall(function() entityLibrary.character.HumanoidRootPart.Jumping:Play() end)
+                                end
+                                if SpeedJumpVanilla.Enabled then
+                                    entityLibrary.character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                                else
+                                    entityLibrary.character.HumanoidRootPart.Velocity = Vector3.new(entityLibrary.character.HumanoidRootPart.Velocity.X, SpeedJumpHeight.Value, entityLibrary.character.HumanoidRootPart.Velocity.Z)
+                                end
+                            end
+                        end
+                    end
+                end))
+            end
+        end,
+        HoverText = "Increases your movement.",
+        ExtraText = function()
+            return "Heatseeker"
+        end
+    })
+    Speed.Restart = function()
+        if Speed.Enabled then Speed:Toggle(false); Speed:Toggle(false) end
+    end
+    SpeedValue = Speed:CreateSlider({
+        Name = "Speed",
+        Min = 1,
+        Max = 23,
+        Function = function(val) end,
+        Default = 21
+    })
+    SpeedValueLarge = Speed:CreateSlider({
+        Name = "Big Mode Speed",
+        Min = 1,
+        Max = 23,
+        Function = function(val) end,
+        Default = 23
+    })
+    SpeedJump = Speed:CreateToggle({
+        Name = "AutoJump",
+        Function = function(callback)
+            if SpeedJumpHeight.Object then SpeedJumpHeight.Object.Visible = callback end
+            if SpeedJumpAlways.Object then
+                SpeedJumpAlways.Object.Visible = callback
+            end
+            if SpeedJumpSound.Object then SpeedJumpSound.Object.Visible = callback end
+            if SpeedJumpVanilla.Object then SpeedJumpVanilla.Object.Visible = callback end
+        end,
+        Default = true
+    })
+    SpeedJumpHeight = Speed:CreateSlider({
+        Name = "Jump Height",
+        Min = 0,
+        Max = 30,
+        Default = 25,
+        Function = function() end
+    })
+    SpeedJumpAlways = Speed:CreateToggle({
+        Name = "Always Jump",
+        Function = function() end
+    })
+    SpeedJumpSound = Speed:CreateToggle({
+        Name = "Jump Sound",
+        Function = function() end
+    })
+    SpeedJumpVanilla = Speed:CreateToggle({
+        Name = "Real Jump",
+        Function = function() end
+    })
+    SpeedAnimation = Speed:CreateToggle({
+        Name = "Slowdown Anim",
+        Function = function() end
+    })
 end)
+
 
 run(function()
 	local function roundpos(dir, pos, size)
