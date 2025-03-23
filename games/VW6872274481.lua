@@ -2791,6 +2791,65 @@ run(function()
 	})
 end)
 
+--[[run(function()
+	local AutoUpgradeEra = {}
+
+	local function invokePurchaseEra(eras)
+		for _, era in ipairs(eras) do
+			local args = {
+				[1] = {
+					["era"] = era
+				}
+			}
+			game:GetService("ReplicatedStorage")
+				:WaitForChild("rbxts_include")
+				:WaitForChild("node_modules")
+				:WaitForChild("@rbxts")
+				:WaitForChild("net")
+				:WaitForChild("out")
+				:WaitForChild("_NetManaged")
+				:WaitForChild("RequestPurchaseEra")
+				:InvokeServer(unpack(args))
+			task.wait(0.1) 
+		end
+	end
+
+	local function invokePurchaseUpgrade(upgrades)
+		for _, upgrade in ipairs(upgrades) do
+			local args = {
+				[1] = {
+					["upgrade"] = upgrade
+				}
+			}
+			game:GetService("ReplicatedStorage")
+				:WaitForChild("rbxts_include")
+				:WaitForChild("node_modules")
+				:FindFirstChild("@rbxts")
+				:WaitForChild("net")
+				:WaitForChild("out")
+				:WaitForChild("_NetManaged")
+				:WaitForChild("RequestPurchaseTeamUpgrade")
+				:InvokeServer(unpack(args))
+			task.wait(0.1) 
+		end
+	end
+
+	AutoUpgradeEra = vape.Categories.Blatant:CreateModule({
+		Name = 'AutoUpgradeEra',
+		Function = function(calling)
+			if calling then 
+				task.spawn(function()
+					repeat 
+						task.wait()
+						invokePurchaseEra({"iron_era", "diamond_era", "emerald_era"})
+						invokePurchaseUpgrade({"altar_i", "bed_defense_i", "destruction_i", "magic_i", "altar_ii", "destruction_ii", "magic_ii", "altar_iii"})
+					until not AutoUpgradeEra.Enabled
+				end)
+			end
+		end
+	})
+end)--]]
+
 run(function()
     local AdetundeExploit = {}
     local AdetundeExploit_List = { Value = "Shield" }
@@ -2924,6 +2983,523 @@ run(function()
         Function = function() end,
         Default = "Shield"
     })
+end)
+
+run(function()
+	function IsAlive(plr)
+		plr = plr or lplr
+		if not plr.Character then return false end
+		if not plr.Character:FindFirstChild("Head") then return false end
+		if not plr.Character:FindFirstChild("Humanoid") then return false end
+		if plr.Character:FindFirstChild("Humanoid").Health < 0.11 then return false end
+		return true
+	end
+	local Slowmode = {Value = 2}
+	GodMode = vape.Categories.Blatant:CreateModule({
+		Name = "AntiHit/Godmode",
+		Function = function(callback)
+			if callback then
+				task.spawn(function()
+					repeat task.wait()
+						local res, msg = pcall(function()
+							if (not vape.Modules.Fly.Enabled) and (not vape.Modules.InfiniteFly.Enabled) then
+								for i, v in pairs(game:GetService("Players"):GetChildren()) do
+									if v.Team ~= lplr.Team and IsAlive(v) and IsAlive(lplr) then
+										if v and v ~= lplr then
+											local TargetDistance = lplr:DistanceFromCharacter(v.Character:FindFirstChild("HumanoidRootPart").CFrame.p)
+											if TargetDistance < 25 then
+												if not lplr.Character:WaitForChild("HumanoidRootPart"):FindFirstChildOfClass("BodyVelocity") then
+													repeat task.wait() until shared.GlobalStore.matchState ~= 0
+													if not (v.Character.HumanoidRootPart.Velocity.Y < -10*5) then
+														lplr.Character.Archivable = true
+				
+														local Clone = lplr.Character:Clone()
+														Clone.Parent = game.Workspace
+														Clone.Head:ClearAllChildren()
+														gameCamera.CameraSubject = Clone:FindFirstChild("Humanoid")
+					
+														for i,v in pairs(Clone:GetChildren()) do
+															if string.lower(v.ClassName):find("part") and v.Name ~= "HumanoidRootPart" then
+																v.Transparency = 1
+															end
+															if v:IsA("Accessory") then
+																v:FindFirstChild("Handle").Transparency = 1
+															end
+														end
+					
+														lplr.Character:WaitForChild("HumanoidRootPart").CFrame = lplr.Character:WaitForChild("HumanoidRootPart").CFrame + Vector3.new(0,100,0)
+					
+														GodMode:Clean(game:GetService("RunService").RenderStepped:Connect(function()
+															if Clone ~= nil and Clone:FindFirstChild("HumanoidRootPart") then
+																Clone.HumanoidRootPart.Position = Vector3.new(lplr.Character:WaitForChild("HumanoidRootPart").Position.X, Clone.HumanoidRootPart.Position.Y, lplr.Character:WaitForChild("HumanoidRootPart").Position.Z)
+															end
+														end))
+					
+														task.wait(Slowmode.Value/10)
+														lplr.Character:WaitForChild("HumanoidRootPart").Velocity = Vector3.new(lplr.Character:WaitForChild("HumanoidRootPart").Velocity.X, -1, lplr.Character:WaitForChild("HumanoidRootPart").Velocity.Z)
+														lplr.Character:WaitForChild("HumanoidRootPart").CFrame = Clone.HumanoidRootPart.CFrame
+														gameCamera.CameraSubject = lplr.Character:FindFirstChild("Humanoid")
+														Clone:Destroy()
+														task.wait(0.15)
+													end
+												end
+											end
+										end
+									end
+								end
+							end
+						end)
+						if not res then warn(msg) end
+					until (not GodMode.Enabled)
+				end)
+			end
+		end
+	})
+	Slowmode = GodMode:CreateSlider({
+		Name = "Slowmode",
+		Function = function() end,
+		Default = 2,
+		Min = 1,
+		Max = 25
+	})
+end)
+
+
+local vapeAssert = function(argument, title, text, duration, hault, moduledisable, module) 
+	if not argument then
+    local suc, res = pcall(function()
+    local notification = GuiLibrary.CreateNotification(title or "Voidware", text or "Failed to call function.", duration or 20, "assets/WarningNotification.png")
+    notification.IconLabel.ImageColor3 = Color3.new(220, 0, 0)
+    notification.Frame.Frame.ImageColor3 = Color3.new(220, 0, 0)
+    if moduledisable and (module and vape.Modules[module].Enabled) then vape.Modules[module]:Toggle(false) end
+    end)
+    if hault then while true do task.wait() end end end
+end
+local function GetMagnitudeOf2Objects(part, part2, bypass)
+	local magnitude, partcount = 0, 0
+	if not bypass then 
+		local suc, res = pcall(function() return part.Position end)
+		partcount = suc and partcount + 1 or partcount
+		suc, res = pcall(function() return part2.Position end)
+		partcount = suc and partcount + 1 or partcount
+	end
+	if partcount > 1 or bypass then 
+		magnitude = bypass and (part - part2).magnitude or (part.Position - part2.Position).magnitude
+	end
+	return magnitude
+end
+local function GetTopBlock(position, smart, raycast, customvector)
+	position = position or isAlive(lplr, true) and lplr.Character:WaitForChild("HumanoidRootPart").Position
+	if not position then 
+		return nil 
+	end
+	if raycast and not game.Workspace:Raycast(position, Vector3.new(0, -2000, 0), store.blockRaycast) then
+	    return nil
+    end
+	local lastblock = nil
+	for i = 1, 500 do 
+		local newray = game.Workspace:Raycast(lastblock and lastblock.Position or position, customvector or Vector3.new(0.55, 999999, 0.55), store.blockRaycast)
+		local smartest = newray and smart and game.Workspace:Raycast(lastblock and lastblock.Position or position, Vector3.new(0, 5.5, 0), store.blockRaycast) or not smart
+		if newray and smartest then
+			lastblock = newray
+		else
+			break
+		end
+	end
+	return lastblock
+end
+local function FindEnemyBed(maxdistance, highest)
+	local target = nil
+	local distance = maxdistance or math.huge
+	local whitelistuserteams = {}
+	local badbeds = {}
+	if not lplr:GetAttribute("Team") then return nil end
+	for i,v in pairs(playersService:GetPlayers()) do
+		if v ~= lplr then
+			local type, attackable = shared.vapewhitelist:get(v)
+			if not attackable then
+				whitelistuserteams[v:GetAttribute("Team")] = true
+			end
+		end
+	end
+	for i,v in pairs(collectionService:GetTagged("bed")) do
+			local bedteamstring = string.split(v:GetAttribute("id"), "_")[1]
+			if whitelistuserteams[bedteamstring] ~= nil then
+			   badbeds[v] = true
+		    end
+	    end
+	for i,v in pairs(collectionService:GetTagged("bed")) do
+		if v:GetAttribute("id") and v:GetAttribute("id") ~= lplr:GetAttribute("Team").."_bed" and badbeds[v] == nil and lplr.Character and lplr.Character.PrimaryPart then
+			if v:GetAttribute("NoBreak") or v:GetAttribute("PlacedByUserId") and v:GetAttribute("PlacedByUserId") ~= 0 then continue end
+			local magdist = GetMagnitudeOf2Objects(lplr.Character.PrimaryPart, v)
+			if magdist < distance then
+				target = v
+				distance = magdist
+			end
+		end
+	end
+	local coveredblock = highest and target and GetTopBlock(target.Position, true)
+	if coveredblock then
+		target = coveredblock.Instance
+	end
+	return target
+end
+local function FindTeamBed()
+	local bedstate, res = pcall(function()
+		return lplr.leaderstats.Bed.Value
+	end)
+	return bedstate and res and res ~= nil and res == "✅"
+end
+local function FindItemDrop(item)
+	local itemdist = nil
+	local dist = math.huge
+	local function abletocalculate() return lplr.Character and lplr.Character:FindFirstChild("HumanoidRootPart") end
+    for i,v in pairs(collectionService:GetTagged("ItemDrop")) do
+		if v and v.Name == item and abletocalculate() then
+			local itemdistance = GetMagnitudeOf2Objects(lplr.Character:WaitForChild("HumanoidRootPart"), v)
+			if itemdistance < dist then
+			itemdist = v
+			dist = itemdistance
+		end
+		end
+	end
+	return itemdist
+end
+local function FindTarget(dist, blockRaycast, includemobs, healthmethod)
+	local whitelist = shared.vapewhitelist
+	local sort, entity = healthmethod and math.huge or dist or math.huge, {}
+	local function abletocalculate() return lplr.Character and lplr.Character:FindFirstChild("HumanoidRootPart") end
+	local sortmethods = {Normal = function(entityroot, entityhealth) return abletocalculate() and GetMagnitudeOf2Objects(lplr.Character:WaitForChild("HumanoidRootPart"), entityroot) < sort end, Health = function(entityroot, entityhealth) return abletocalculate() and entityhealth < sort end}
+	local sortmethod = healthmethod and "Health" or "Normal"
+	local function raycasted(entityroot) return abletocalculate() and blockRaycast and game.Workspace:Raycast(entityroot.Position, Vector3.new(0, -2000, 0), store.blockRaycast) or not blockRaycast and true or false end
+	for i,v in pairs(playersService:GetPlayers()) do
+		if v ~= lplr and abletocalculate() and isAlive(v) and v.Team ~= lplr.Team then
+			if not ({whitelist:get(v)})[2] then 
+				continue
+			end
+			if sortmethods[sortmethod](v.Character.HumanoidRootPart, v.Character:GetAttribute("Health") or v.Character.Humanoid.Health) and raycasted(v.Character.HumanoidRootPart) then
+				sort = healthmethod and v.Character.Humanoid.Health or GetMagnitudeOf2Objects(lplr.Character:WaitForChild("HumanoidRootPart"), v.Character.HumanoidRootPart)
+				entity.Player = v
+				entity.Human = true 
+				entity.RootPart = v.Character.HumanoidRootPart
+				entity.Humanoid = v.Character.Humanoid
+			end
+		end
+	end
+	if includemobs then
+		local maxdistance = dist or math.huge
+		for i,v in pairs(store.pots) do
+			if abletocalculate() and v.PrimaryPart and GetMagnitudeOf2Objects(lplr.Character:WaitForChild("HumanoidRootPart"), v.PrimaryPart) < maxdistance then
+			entity.Player = {Character = v, Name = "PotEntity", DisplayName = "PotEntity", UserId = 1}
+			entity.Human = false
+			entity.RootPart = v.PrimaryPart
+			entity.Humanoid = {Health = 1, MaxHealth = 1}
+			end
+		end
+		for i,v in pairs(collectionService:GetTagged("DiamondGuardian")) do 
+			if v.PrimaryPart and v:FindFirstChild("Humanoid") and v.Humanoid.Health and abletocalculate() then
+				if sortmethods[sortmethod](v.PrimaryPart, v.Humanoid.Health) and raycasted(v.PrimaryPart) then
+				sort = healthmethod and v.Humanoid.Health or GetMagnitudeOf2Objects(lplr.Character:WaitForChild("HumanoidRootPart"), v.PrimaryPart)
+				entity.Player = {Character = v, Name = "DiamondGuardian", DisplayName = "DiamondGuardian", UserId = 1}
+				entity.Human = false
+				entity.RootPart = v.PrimaryPart
+				entity.Humanoid = v.Humanoid
+				end
+			end
+		end
+		for i,v in pairs(collectionService:GetTagged("GolemBoss")) do
+			if v.PrimaryPart and v:FindFirstChild("Humanoid") and v.Humanoid.Health and abletocalculate() then
+				if sortmethods[sortmethod](v.PrimaryPart, v.Humanoid.Health) and raycasted(v.PrimaryPart) then
+				sort = healthmethod and v.Humanoid.Health or GetMagnitudeOf2Objects(lplr.Character:WaitForChild("HumanoidRootPart"), v.PrimaryPart)
+				entity.Player = {Character = v, Name = "Titan", DisplayName = "Titan", UserId = 1}
+				entity.Human = false
+				entity.RootPart = v.PrimaryPart
+				entity.Humanoid = v.Humanoid
+				end
+			end
+		end
+		for i,v in pairs(collectionService:GetTagged("Drone")) do
+			local plr = playersService:GetPlayerByUserId(v:GetAttribute("PlayerUserId"))
+			if plr and plr ~= lplr and plr.Team and lplr.Team and plr.Team ~= lplr.Team and ({VoidwareFunctions:GetPlayerType(plr)})[2] and abletocalculate() and v.PrimaryPart and v:FindFirstChild("Humanoid") and v.Humanoid.Health then
+				if sortmethods[sortmethod](v.PrimaryPart, v.Humanoid.Health) and raycasted(v.PrimaryPart) then
+					sort = healthmethod and v.Humanoid.Health or GetMagnitudeOf2Objects(lplr.Character:WaitForChild("HumanoidRootPart"), v.PrimaryPart)
+					entity.Player = {Character = v, Name = "Drone", DisplayName = "Drone", UserId = 1}
+					entity.Human = false
+					entity.RootPart = v.PrimaryPart
+					entity.Humanoid = v.Humanoid
+				end
+			end
+		end
+		for i,v in pairs(collectionService:GetTagged("Monster")) do
+			if v:GetAttribute("Team") ~= lplr:GetAttribute("Team") and abletocalculate() and v.PrimaryPart and v:FindFirstChild("Humanoid") and v.Humanoid.Health then
+				if sortmethods[sortmethod](v.PrimaryPart, v.Humanoid.Health) and raycasted(v.PrimaryPart) then
+				sort = healthmethod and v.Humanoid.Health or GetMagnitudeOf2Objects(lplr.Character:WaitForChild("HumanoidRootPart"), v.PrimaryPart)
+				entity.Player = {Character = v, Name = "Monster", DisplayName = "Monster", UserId = 1}
+				entity.Human = false
+				entity.RootPart = v.PrimaryPart
+				entity.Humanoid = v.Humanoid
+			end
+		end
+	end
+    end
+    return entity
+end
+local function isVulnerable(plr) return plr.Humanoid.Health > 0 and not plr.Character.FindFirstChildWhichIsA(plr.Character, "ForceField") end
+VoidwareFunctions.GlobaliseObject("isVulnarable", isVulnarable)
+local function EntityNearPosition(distance, ignore, overridepos)
+	local closestEntity, closestMagnitude = nil, distance
+	if entityLibrary.isAlive then
+		for i, v in pairs(entityLibrary.entityList) do
+			if not v.Targetable then continue end
+			if isVulnerable(v) then
+				local mag = (entityLibrary.character.HumanoidRootPart.Position - v.RootPart.Position).magnitude
+				if overridepos and mag > distance then
+					mag = (overridepos - v.RootPart.Position).magnitude
+				end
+				if mag <= closestMagnitude then
+					closestEntity, closestMagnitude = v, mag
+				end
+			end
+		end
+		if not ignore then
+			for i, v in pairs(game.Workspace:GetChildren()) do
+				if v.Name == "Void Enemy Dummy" or v.Name == "Emerald Enemy Dummy" or v.Name == "Diamond Enemy Dummy" or v.Name == "Leather Enemy Dummy" or v.Name == "Regular Enemy Dummy" or v.Name == "Iron Enemy Dummy" then
+					if v.PrimaryPart then
+						local mag = (entityLibrary.character.HumanoidRootPart.Position - v.PrimaryPart.Position).magnitude
+						if overridepos and mag > distance then
+							mag = (overridepos - v2.PrimaryPart.Position).magnitude
+						end
+						if mag <= closestMagnitude then
+							closestEntity, closestMagnitude = {Player = {Name = v.Name, UserId = (v.Name == "Duck" and 2020831224 or 1443379645)}, Character = v, RootPart = v.PrimaryPart, JumpTick = tick() + 5, Jumping = false, Humanoid = {HipHeight = 2}}, mag
+						end
+					end
+				end
+			end
+			for i, v in pairs(collectionService:GetTagged("Monster")) do
+				if v.PrimaryPart and v:GetAttribute("Team") ~= lplr:GetAttribute("Team") then
+					local mag = (entityLibrary.character.HumanoidRootPart.Position - v.PrimaryPart.Position).magnitude
+					if overridepos and mag > distance then
+						mag = (overridepos - v2.PrimaryPart.Position).magnitude
+					end
+					if mag <= closestMagnitude then
+						closestEntity, closestMagnitude = {Player = {Name = v.Name, UserId = (v.Name == "Duck" and 2020831224 or 1443379645)}, Character = v, RootPart = v.PrimaryPart, JumpTick = tick() + 5, Jumping = false, Humanoid = {HipHeight = 2}}, mag
+					end
+				end
+			end
+			for i, v in pairs(collectionService:GetTagged("GuardianOfDream")) do
+				if v.PrimaryPart and v:GetAttribute("Team") ~= lplr:GetAttribute("Team") then
+					local mag = (entityLibrary.character.HumanoidRootPart.Position - v.PrimaryPart.Position).magnitude
+					if overridepos and mag > distance then
+						mag = (overridepos - v2.PrimaryPart.Position).magnitude
+					end
+					if mag <= closestMagnitude then
+						closestEntity, closestMagnitude = {Player = {Name = v.Name, UserId = (v.Name == "Duck" and 2020831224 or 1443379645)}, Character = v, RootPart = v.PrimaryPart, JumpTick = tick() + 5, Jumping = false, Humanoid = {HipHeight = 2}}, mag
+					end
+				end
+			end
+			for i, v in pairs(collectionService:GetTagged("DiamondGuardian")) do
+				if v.PrimaryPart then
+					local mag = (entityLibrary.character.HumanoidRootPart.Position - v.PrimaryPart.Position).magnitude
+					if overridepos and mag > distance then
+						mag = (overridepos - v2.PrimaryPart.Position).magnitude
+					end
+					if mag <= closestMagnitude then
+						closestEntity, closestMagnitude = {Player = {Name = "DiamondGuardian", UserId = 1443379645}, Character = v, RootPart = v.PrimaryPart, JumpTick = tick() + 5, Jumping = false, Humanoid = {HipHeight = 2}}, mag
+					end
+				end
+			end
+			for i, v in pairs(collectionService:GetTagged("GolemBoss")) do
+				if v.PrimaryPart then
+					local mag = (entityLibrary.character.HumanoidRootPart.Position - v.PrimaryPart.Position).magnitude
+					if overridepos and mag > distance then
+						mag = (overridepos - v2.PrimaryPart.Position).magnitude
+					end
+					if mag <= closestMagnitude then
+						closestEntity, closestMagnitude = {Player = {Name = "GolemBoss", UserId = 1443379645}, Character = v, RootPart = v.PrimaryPart, JumpTick = tick() + 5, Jumping = false, Humanoid = {HipHeight = 2}}, mag
+					end
+				end
+			end
+			for i, v in pairs(collectionService:GetTagged("Drone")) do
+				if v.PrimaryPart and tonumber(v:GetAttribute("PlayerUserId")) ~= lplr.UserId then
+					local droneplr = playersService:GetPlayerByUserId(v:GetAttribute("PlayerUserId"))
+					if droneplr and droneplr.Team == lplr.Team then continue end
+					local mag = (entityLibrary.character.HumanoidRootPart.Position - v.PrimaryPart.Position).magnitude
+					if overridepos and mag > distance then
+						mag = (overridepos - v.PrimaryPart.Position).magnitude
+					end
+					if mag <= closestMagnitude then -- magcheck
+						closestEntity, closestMagnitude = {Player = {Name = "Drone", UserId = 1443379645}, Character = v, RootPart = v.PrimaryPart, JumpTick = tick() + 5, Jumping = false, Humanoid = {HipHeight = 2}}, mag
+					end
+				end
+			end
+			for i,v in pairs(game.Workspace:GetChildren()) do
+				if v.Name == "InfectedCrateEntity" and v.ClassName == "Model" and v.PrimaryPart then
+					local mag = (entityLibrary.character.HumanoidRootPart.Position - v.PrimaryPart.Position).magnitude
+					if overridepos and mag > distance then
+						mag = (overridepos - v.PrimaryPart.Position).magnitude
+					end
+					if mag <= closestMagnitude then -- magcheck
+						closestEntity, closestMagnitude = {Player = {Name = "InfectedCrateEntity", UserId = 1443379645}, Character = v, RootPart = v.PrimaryPart, JumpTick = tick() + 5, Jumping = false, Humanoid = {HipHeight = 2}}, mag
+					end
+				end
+			end
+			for i, v in pairs(store.pots) do
+				if v.PrimaryPart then
+					local mag = (entityLibrary.character.HumanoidRootPart.Position - v.PrimaryPart.Position).magnitude
+					if overridepos and mag > distance then
+						mag = (overridepos - v.PrimaryPart.Position).magnitude
+					end
+					if mag <= closestMagnitude then -- magcheck
+						closestEntity, closestMagnitude = {Player = {Name = "Pot", UserId = 1443379645}, Character = v, RootPart = v.PrimaryPart, JumpTick = tick() + 5, Jumping = false, Humanoid = {HipHeight = 2}}, mag
+					end
+				end
+			end
+		end
+	end
+	return closestEntity
+end
+VoidwareFunctions.GlobaliseObject("EntityNearPosition", EntityNearPosition)
+
+run(function()
+	local GetHost = {Enabled = false}
+	GetHost = vape.Categories.Misc:CreateModule({
+		Name = "GetHost",
+		Tooltip = ":troll:",
+		Function = function(callback) 
+			if callback then
+				task.spawn(function()
+					warningNotification("GetHost", "This module is only for show. None of the settings will work.", 5)
+					game.Players.LocalPlayer:SetAttribute("CustomMatchRole", "host")
+				end)
+			end
+		end
+	})
+end)
+
+run(function()
+	local lplr = game:GetService("Players").LocalPlayer
+	local lplr_gui = lplr.PlayerGui
+
+	local function handle_tablist(ui)
+		local frame = ui:FindFirstChild("TabListFrame")
+		if frame then
+			local plrs_frame = frame:FindFirstChild("4"):FindFirstChild("1")
+			if plrs_frame then
+				local side_1 = plrs_frame:WaitForChild("2")
+				local side_2 = plrs_frame:WaitForChild("3")
+				local sides = {side_1, side_2}
+
+				for _, side in pairs(sides) do
+					if side then
+						--print("Processing side:", side.Name)
+						local side_teams = {}
+						local side_teams_players = {}
+
+						for _, child in pairs(side:GetChildren()) do
+							if child:IsA("Frame") then
+								table.insert(side_teams, child)
+							end
+						end
+
+						for _, team in pairs(side_teams) do
+							local team_plrs_list = team:WaitForChild("3")
+							local plrs = team_plrs_list:GetChildren()
+
+							for _, plr in pairs(plrs) do
+								if plr:IsA("Frame") and plr.Name == "PlayerRowContainer" then
+									table.insert(side_teams_players, plr)
+								end
+							end
+						end
+
+						for _, player_row in pairs(side_teams_players) do
+							local plr_name_frame = player_row:WaitForChild("Content"):WaitForChild("PlayerRow"):WaitForChild("3"):WaitForChild("PlayerNameContainer"):WaitForChild("3"):WaitForChild("2"):FindFirstChild("PlayerName")
+
+							if plr_name_frame then
+								local function extract_name(formatted_text)
+									local name = formatted_text:match("</font>%s*(.+)")
+									return name
+								end
+
+								local current_text = plr_name_frame.Text
+								local name = extract_name(current_text)
+								local streamer_mode = true
+
+								for _, player in pairs(game:GetService("Players"):GetPlayers()) do
+									if player.DisplayName == name then
+										streamer_mode = false
+										break
+									end
+								end
+
+								if not streamer_mode then
+									local needed_plr
+									for i,v in pairs(game:GetService("Players"):GetPlayers()) do
+										if game:GetService("Players"):GetPlayers()[i].DisplayName == name then
+											needed_plr = game:GetService("Players"):GetPlayers()[i]
+										end
+									end
+									if needed_plr then
+										local function get_player_rank(player)
+											local rank = shared.vapewhitelist:get(player)
+											if rank == 1 then
+												return "INF"
+											elseif rank == 2 then
+												return "Owner"
+											else
+												return "Normal"
+											end
+										end
+										local rank = get_player_rank(needed_plr)
+										local function add_colored_text(existing_text, new_text, color3)
+											local r = math.floor(color3.R * 255)
+											local g = math.floor(color3.G * 255)
+											local b = math.floor(color3.B * 255)
+											local new_colored_text = string.format('<font color="rgb(%d,%d,%d)">[%s]</font> ', r, g, b, new_text)
+											local updated_text = new_colored_text .. existing_text
+											return updated_text
+										end
+
+										local tag_data = shared.vapewhitelist:tag(needed_plr)
+										if tag_data and #tag_data > 0 then
+											if tag_data[1]["text"] == "VOIDWARE USER" then rank = "Normal" end
+											local tag_text = tag_data[1]["text"].." - "..rank
+											local tag_color = tag_data[1]["color"]
+											local updated_text = add_colored_text(current_text, tag_text, tag_color)
+											
+											if updated_text then
+												plr_name_frame.Text = updated_text
+											end
+										else
+											print("Tag data missing for player:", name)
+										end
+									end
+								else
+									print("Streamer mode is on for player:", name)
+								end
+							else
+								print("PlayerName frame not found for player row")
+							end
+						end
+					else
+						print("Side is nil")
+					end
+				end
+			else
+				print("Players frame not found")
+			end
+		else
+			print("TabListFrame not found")
+		end
+	end
+
+	local function handle_new_ui(ui)
+		if tostring(ui) == "TabListScreenGui" then
+			handle_tablist(ui)
+		end
+	end
+
+	lplr_gui.ChildAdded:Connect(handle_new_ui)
 end)
 
 run(function()
@@ -3144,67 +3720,6 @@ run(function()
 		Name = 'Cached detections',
 		Tooltip = 'Writes (vape/Libraries/exploiters.json)\neverytime someone is detected.',
 		Default = true,
-		Function = function() end
-	})
-end)
-
-run(function()
-	local DoubleHighJump = {Enabled = false}
-	local DoubleHighJumpHeight = {Value = 500}
-	local DoubleHighJumpHeight2 = {Value = 500}
-	local jumps = 0
-	DoubleHighJump = vape.Categories.Blatant:CreateModule({
-		Name = "DoubleHighJump",
-		NoSave = true,
-		Tooltip = "A very interesting high jump.",
-		Function = function(callback)
-			if callback then 
-				task.spawn(function()
-					if entityLibrary.isAlive and lplr.Character:WaitForChild("Humanoid").FloorMaterial == Enum.Material.Air or jumps > 0 then 
-						DoubleHighJump:Toggle(false) 
-						return
-					end
-					for i = 1, 2 do 
-						if not entityLibrary.isAlive then
-							DoubleHighJump:Toggle(false) 
-							return  
-						end
-						if i == 2 and lplr.Character:WaitForChild("Humanoid").FloorMaterial ~= Enum.Material.Air then 
-							continue
-						end
-						lplr.Character:WaitForChild("HumanoidRootPart").Velocity = Vector3.new(0, i == 1 and DoubleHighJumpHeight.Value or DoubleHighJumpHeight2.Value, 0)
-						jumps = i
-						task.wait(i == 1 and 1 or 0.3)
-					end
-					task.spawn(function()
-						for i = 1, 20 do 
-							if entityLibrary.isAlive then 
-								lplr.Character:WaitForChild("Humanoid"):ChangeState(Enum.HumanoidStateType.Landed)
-							end
-						end
-					end)
-					task.delay(1.6, function() jumps = 0 end)
-					if DoubleHighJump.Enabled then
-					   DoubleHighJump:Toggle(false)
-					end
-				end)
-			else
-				VoidwareStore.jumpTick = tick() + 5
-			end
-		end
-	})
-	DoubleHighJumpHeight = DoubleHighJump:CreateSlider({
-		Name = "First Jump",
-		Min = 50,
-		Max = 500,
-		Default = 500,
-		Function = function() end
-	})
-	DoubleHighJumpHeight2 = DoubleHighJump:CreateSlider({
-		Name = "Second Jump",
-		Min = 50,
-		Max = 450,
-		Default = 450,
 		Function = function() end
 	})
 end)
@@ -3800,6 +4315,87 @@ end)
 
 local GuiLibrary = shared.GuiLibrary
 shared.slowmode = 0
+
+if CustomsAllowed then
+	run(function()
+		local ItemSpawner = {Enabled = false}
+		local spawnedItems = {}
+		local chattedConnection
+		local function getInv(plr) return plr.Character and plr.Character:FindFirstChild("InventoryFolder") and plr.Character:FindFirstChild("InventoryFolder").Value end
+		local ArmorIncluded = {Enabled = false}
+		local ProjectilesIncluded = {Enabled = false}
+		local ItemsIncluded = {Enabled = false}
+		local StrictMatch = {Enabled = false}
+		local function getRepItems()
+			local tbl = {"Armor", "Projectiles"}
+			local a = ItemsIncluded.Enabled and game:GetService("ReplicatedStorage"):FindFirstChild("Items") and game:GetService("ReplicatedStorage"):FindFirstChild("Items"):GetChildren() or {}
+			local b = ArmorIncluded.Enabled and game:GetService("ReplicatedStorage"):FindFirstChild("Assets") and game:GetService("ReplicatedStorage"):FindFirstChild("Assets"):FindFirstChild(tbl[1]) and game:GetService("ReplicatedStorage"):FindFirstChild("Assets"):FindFirstChild(tbl[1]):GetChildren() or {}
+			local c = ProjectilesIncluded.Enabled and game:GetService("ReplicatedStorage"):FindFirstChild("Assets") and game:GetService("ReplicatedStorage"):FindFirstChild("Assets"):FindFirstChild(tbl[2]) and game:GetService("ReplicatedStorage"):FindFirstChild("Assets"):FindFirstChild(tbl[2]):GetChildren() or {}
+			
+			local fullTbl = {}
+			local d = {a,b,c}
+			for i,v in pairs(d) do for i2,v2 in pairs(v) do table.insert(fullTbl, v2) end end
+			return fullTbl
+		end
+		local inv, repItems
+		local function getRepItem(name)
+			repItems = getRepItems()
+			for i,v in pairs(repItems) do if v.Name and ((StrictMatch.Enabled and v.Name == name) or ((not StrictMatch.Enabled) and string.find(v.Name, name))) then return v end end
+			return nil
+		end
+		local function getSpawnedItem(name)
+			for i,v in pairs(spawnedItems) do if v.Name and ((StrictMatch.Enabled and v.Name == name) or ((not StrictMatch.Enabled) and string.find(v.Name, name))) then return v end end
+			return nil
+		end
+		ItemSpawner = vape.Categories.Utility:CreateModule({
+			Name = "ItemSpawner (CS)",
+			Function = function(call)
+				if call then
+					task.spawn(function() repeat task.wait(0.1); inv = getInv(game:GetService("Players").LocalPlayer) until inv end)
+					task.spawn(function() repeat task.wait(0.1); repItems = getRepItems() until repItems end)
+					chattedConnection = game:GetService("Players").LocalPlayer.Chatted:Connect(function(msg)
+						local parts = string.split(msg, " ")
+						if parts[1] == "/e" then
+							if parts[2] == "spawn" then
+								inv, repItems = getInv(game:GetService("Players").LocalPlayer), getRepItems()
+								if parts[3] then
+									local item = getRepItem(parts[3])
+									if item then
+										local amount, newItem = tonumber(parts[4]) or 1, item:Clone()
+										newItem.Parent = inv
+										pcall(function() newItem:SetAttribute("Amount", amount) end)
+										pcall(function() newItem:SetAttribute("CustomSpawned", true) end)
+										pcall(function() bedwars.StoreController:updateLocalInventory() end)
+										table.insert(spawnedItems, newItem)
+									else errorNotification("ItemSpawner", tostring(parts[3]).." is not a valid item name!", 3) end
+								end
+							elseif parts[2] == "despawn" then
+								inv, repItems = getInv(game:GetService("Players").LocalPlayer), getRepItems()
+								if parts[3] then
+									local item = getSpawnedItem(parts[3])
+									if item then 
+										table.remove(spawnedItems, table.find(spawnedItems, item))
+										pcall(function() item:Destroy() end)
+										pcall(function() bedwars.StoreController:updateLocalInventory() end)
+									end
+								else errorNotification("ItemSpawner", tostring(parts[3]).." is not a valid item name!", 3) end
+							end
+						end
+					end)
+				else
+					pcall(function() chattedConnection:Disconnect() end)
+					pcall(function() chattedConnection:Disconnect() end)
+					for i,v in pairs(spawnedItems) do pcall(function() v:Destroy() end) end
+				end
+			end
+		})
+		ItemSpawner.Restart = function() if ItemSpawner.Enabled then ItemSpawner:Toggle(false); ItemSpawner:Toggle(false) end end
+		StrictMatch = ItemSpawner:CreateToggle({ Name = "StrictMatch", Function = ItemSpawner.Restart, Default = true})
+		ItemsIncluded = ItemSpawner:CreateToggle({Name = "ItemsIncluded", Function = ItemSpawner.Restart, Default = true})
+		ProjectilesIncluded = ItemSpawner:CreateToggle({Name = "ProjectilesIncluded", Function = ItemSpawner.Restart, Default = true})
+		ArmorIncluded = ItemSpawner:CreateToggle({Name = "ArmorIncluded", Function = ItemSpawner.Restart, Default = true})
+	end)
+end
 
 if shared.CheatEngineMode then
 	run(function()
