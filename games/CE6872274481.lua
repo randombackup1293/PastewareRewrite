@@ -615,6 +615,12 @@ local function corehotbarswitch(tool)
 		end
 	end
 	task.spawn(function()
+		local function run(func)
+			local suc, err = pcall(function()
+				func()
+			end)
+			if err then warn("[CoreSwitch Error]: "..tostring(debug.traceback(err))) end
+		end
 		run(function()
 			if not lplr.Character then return false end
 
@@ -673,6 +679,12 @@ local function coreswitch(tool)
         currentHandItem:Destroy()
     end
 
+    for _, weld in pairs(character:GetDescendants()) do
+        if weld:IsA("Weld") and weld.Name == "HandItemWeld" then
+            weld:Destroy()
+        end
+    end
+
     local inventoryFolder = character:FindFirstChild("InventoryFolder")
     if not inventoryFolder or not inventoryFolder.Value then return end
     local toolInstance = inventoryFolder.Value:FindFirstChild(tool.Name)
@@ -690,7 +702,7 @@ local function coreswitch(tool)
             local characterAttachment = character:FindFirstChild(attachment.Name, true)
             if characterAttachment and characterAttachment:IsA("Attachment") then
                 local weld = Instance.new("Weld")
-                weld.Name = "AccessoryWeld"
+                weld.Name = "HandItemWeld"
                 weld.Part0 = characterAttachment.Parent 
                 weld.Part1 = handle
                 weld.C0 = characterAttachment.CFrame
@@ -709,9 +721,9 @@ local function coreswitch(tool)
 		bedwars.Client:Get(bedwars.EquipItemRemote):InvokeServer({hand = tool})
     end)
 
-	corehotbarswitch()
+    corehotbarswitch()
 
-	return true
+    return true
 end
 
 local function switchItem(tool, delayTime)
@@ -4987,86 +4999,180 @@ run(function()
 	})
 end)
 
+local vapeConnections = {}
+
+local runService = game:GetService("RunService")
+
+local RunLoops = {
+    RenderStepTable = {},
+    StepTable = {},
+    HeartTable = {}
+}
+
+local function BindToLoop(tableName, service, name, func)
+	local oldfunc = func
+	func = function(delta) VoidwareFunctions.handlepcall(pcall(function() oldfunc(delta) end)) end
+    if RunLoops[tableName][name] == nil then
+        RunLoops[tableName][name] = service:Connect(func)
+        table.insert(vapeConnections, RunLoops[tableName][name])
+    end
+end
+
+local function UnbindFromLoop(tableName, name)
+    if RunLoops[tableName][name] then
+        RunLoops[tableName][name]:Disconnect()
+        RunLoops[tableName][name] = nil
+    end
+end
+
+function RunLoops:BindToRenderStep(name, func)
+    BindToLoop("RenderStepTable", runService.RenderStepped, name, func)
+end
+
+function RunLoops:UnbindFromRenderStep(name)
+    UnbindFromLoop("RenderStepTable", name)
+end
+
+function RunLoops:BindToStepped(name, func)
+    BindToLoop("StepTable", runService.Stepped, name, func)
+end
+
+function RunLoops:UnbindFromStepped(name)
+    UnbindFromLoop("StepTable", name)
+end
+
+function RunLoops:BindToHeartbeat(name, func)
+    BindToLoop("HeartTable", runService.Heartbeat, name, func)
+end
+
+function RunLoops:UnbindFromHeartbeat(name)
+    UnbindFromLoop("HeartTable", name)
+end
+
 run(function()
-	local NoFall = {Enabled = false}
-	local SafeRange = {Value = 20}
-	local VelocityThreshold = {Value = 30}
-	local CoreConnection = {Disconnect = function() end}
-
-	local collectionService = game:GetService("CollectionService")
-	local vapeConnections = vapeConnections or {}
-
-	local blockRaycast = RaycastParams.new()
-	blockRaycast.FilterType = Enum.RaycastFilterType.Include
-
-	local blocks = collectionService:GetTagged("block") or {}
-	blockRaycast.FilterDescendantsInstances = {blocks}
-	table.insert(vapeConnections, collectionService:GetInstanceAddedSignal("block"):Connect(function(block)
-		table.insert(blocks, block)
-		blockRaycast.FilterDescendantsInstances = {blocks}
-	end))
-	table.insert(vapeConnections, collectionService:GetInstanceRemovedSignal("block"):Connect(function(block)
-		block = table.find(blocks, block)
-		if block then
-			table.remove(blocks, block)
-			blockRaycast.FilterDescendantsInstances = {blocks}
-		end
-	end))
-
-	NoFall = vape.Categories.Blatant:CreateModule({
-		Name = "NoFall",
-		Function = function(callback)
-			if callback then
-				task.spawn(function()
-					pcall(function() 
-						game:GetService("ReplicatedStorage"):WaitForChild("rbxts_include"):WaitForChild("node_modules"):WaitForChild("@rbxts"):WaitForChild("net"):WaitForChild("out"):WaitForChild("_NetManaged"):WaitForChild("TridentUnanchor"):Destroy()
-					end)
-				end)
-
-				local safeRange = SafeRange.Value
-				local velocityThreshold = -VelocityThreshold.Value
-				
-				CoreConnection = game:GetService("RunService").Heartbeat:Connect(function()
-					if not entitylib.isAlive then return end
-					if LongJump.Enabled then return end
-					local humanoid = entitylib.character.Humanoid
-					local rootPart = entitylib.character.HumanoidRootPart
-					if humanoid:GetState() == Enum.HumanoidStateType.Freefall and rootPart.Velocity.Y < velocityThreshold then
-						local ray = workspace:Raycast(rootPart.Position, Vector3.new(0, -1000, 0), blockRaycast)
-						if ray then
-							local distance = rootPart.Position.Y - ray.Position.Y
-							if distance > safeRange then
-								local newPosition = Vector3.new(
-									rootPart.Position.X,
-									ray.Position.Y + 0.1, 
-									rootPart.Position.Z
-								)
-								rootPart.CFrame = CFrame.new(newPosition) * rootPart.CFrame.Rotation
+    local NoFall = {}
+	local MitigationChoice = {Value = "VelocityClamp"}
+	local RishThreshold = {Value = 30}
+    local PredictiveAnalysis = {}
+    local MitigationStrategies = {}
+    local velocityHistory = {}
+    local maxHistory = 10
+    
+    local function recordVelocity()
+        if not entitylib.isAlive or not entitylib.character or not entitylib.character.RootPart then return end
+        local velocity = entitylib.character.RootPart.Velocity
+        table.insert(velocityHistory, velocity.Y)
+        if #velocityHistory > maxHistory then
+            table.remove(velocityHistory, 1)
+        end
+    end
+    
+    local function analyzeFallRisk()
+        if #velocityHistory < maxHistory then return 0 end
+        local downwardTrend = 0
+        for i = 2, #velocityHistory do
+            if velocityHistory[i] < velocityHistory[i - 1] and velocityHistory[i] < 0 then
+                downwardTrend = downwardTrend + (velocityHistory[i - 1] - velocityHistory[i])
+            end
+        end
+        local raycastParams = RaycastParams.new()
+        raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+        raycastParams.FilterDescendantsInstances = {lplr.Character}
+        local rootPos = entitylib.character.RootPart.Position
+        local rayResult = workspace:Raycast(rootPos, Vector3.new(0, -50, 0), raycastParams)
+        local distanceToGround = rayResult and (rootPos.Y - rayResult.Position.Y) or math.huge
+        local riskFactor = downwardTrend * (distanceToGround > 10 and 1.5 or 1)
+        return riskFactor, distanceToGround
+    end
+    
+    local function hasMitigationItem()
+        for _, item in pairs(store.inventory.inventory.items) do
+			if item and item.itemType and string.find(string.lower(tostring(item.itemType)), 'wool') then 
+				return item
+			end
+        end
+        return nil
+    end
+    
+    MitigationStrategies.VelocityClamp = function(risk)
+        if not entitylib.isAlive or not entitylib.character or not entitylib.character.RootPart then return end
+        local root = entitylib.character.RootPart
+        local currentVelocity = root.Velocity
+        if currentVelocity.Y < -50 then
+            root.Velocity = Vector3.new(currentVelocity.X, math.clamp(currentVelocity.Y, -50, math.huge), currentVelocity.Z)
+        end
+    end
+    
+    MitigationStrategies.TeleportBuffer = function(distance)
+        if not entitylib.isAlive or not entitylib.character or not entitylib.character.RootPart then return end
+        local root = entitylib.character.RootPart
+        local raycastParams = RaycastParams.new()
+        raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+        raycastParams.FilterDescendantsInstances = {lplr.Character}
+        local rayResult = workspace:Raycast(root.Position, Vector3.new(0, -distance - 2, 0), raycastParams)
+        if rayResult and distance > 10 then
+            local safePos = rayResult.Position + Vector3.new(0, 3, 0)
+            pcall(function()
+                root.CFrame = CFrame.new(safePos)
+            end)
+        end
+    end
+    
+    MitigationStrategies.ItemDeploy = function(item)
+        if not item then return end
+        local root = entitylib.character.RootPart
+        local belowPos = root.Position - Vector3.new(0, 3, 0)
+        bedwars.placeBlock(belowPos, item.itemType, true)
+    end
+    
+    NoFall = vape.Categories.Utility:CreateModule({
+        Name = 'NoFall',
+        Function = function(callback)
+            if callback then
+                RunLoops:BindToHeartbeat('NoFallMonitor', function()
+                    recordVelocity()
+                    local risk, distance = analyzeFallRisk()
+                    if risk > RishThreshold.Value then
+						if MitigationChoice.Value ~= "ItemDeploy" then
+							MitigationStrategies[MitigationChoice.Value](MitigationChoice.Value == "VelocityClamp" and risk or MitigationChoice.Value == "TeleportBuffer" and distance)
+						else
+							local mitigationItem = hasMitigationItem()
+							if mitigationItem then
+								if distance < 10 then
+									MitigationStrategies.ItemDeploy(mitigationItem)
+								end
+							else
+								warningNotification("NoFall", "Mitigation Item not found. Using VelocityClamp instead...", 3)
+								MitigationStrategies.VelocityClamp(risk)
 							end
 						end
-					end
-				end)				
-			else
-				pcall(function()
-					CoreConnection:Disconnect()
-				end)
-			end
-		end,
-		HoverText = "Prevents taking fall damage."
-	})
-	SafeRange = NoFall:CreateSlider({
-		Name = "SafeRange",
+                    end
+                end)
+            else
+                RunLoops:UnbindFromHeartbeat('NoFallMonitor')
+                table.clear(velocityHistory)
+            end
+        end,
+        Tooltip = 'Prevents fall damage'
+    })
+
+	RishThreshold = NoFall:CreateSlider({
+		Name = "Risk Threshold",
 		Function = function() end,
-		Min = 10, 
-		Max = 30,
-		Default = 20
-	})
-	VelocityThreshold = NoFall:CreateSlider({
-		Name = "VelocityThreshold",
-		Function = function() end,
-		Min = 20, 
-		Max = 50,
+		Min = 5,
+		Max = 100,
 		Default = 30
+	})
+
+	MitigationChoice = NoFall:CreateDropdown({
+		Name = "Mitigation Strategies",
+		Default = "VelocityClamp",
+		List = {"VelocityClamp", "TeleportBuffer", "ItemDeploy"},
+		Function = function()
+			if MitigationChoice.Value == "ItemDeploy" then
+				warningNotification("Mitigation Strategies - ItemDeploy", "Not yet finished! Its recommended to use VelocityClamp instead.", 1.5)
+			end
+		end
 	})
 end)
 
@@ -5441,144 +5547,136 @@ end)
 
 local antivoidvelo
 run(function()
-    local Speed = {Enabled = false}
-    local SpeedMode = {Value = "CFrame"}
-    local SpeedValue = {Value = 1}
-    local SpeedValueLarge = {Value = 1}
-    local SpeedJump = {Enabled = false}
-    local SpeedJumpHeight = {Value = 20}
-    local SpeedJumpAlways = {Enabled = false}
-    local SpeedJumpSound = {Enabled = false}
-    local SpeedJumpVanilla = {Enabled = false}
-    local SpeedAnimation = {Enabled = false}
-    local SpeedDamageBoost = {Enabled = false}
-    local raycastparameters = RaycastParams.new()
-    local damagetick = tick()
+	local Speed = {Enabled = false}
+	local SpeedMode = {Value = "CFrame"}
+	local SpeedValue = {Value = 1}
+	local SpeedValueLarge = {Value = 1}
+	local SpeedJump = {Enabled = false}
+	local SpeedJumpHeight = {Value = 20}
+	local SpeedJumpAlways = {Enabled = false}
+	local SpeedJumpSound = {Enabled = false}
+	local SpeedJumpVanilla = {Enabled = false}
+	local SpeedAnimation = {Enabled = false}
+	local SpeedDamageBoost = {Enabled = false}
+	local raycastparameters = RaycastParams.new()
+	local damagetick = tick()
 
-    local alternatelist = {"Normal", "AntiCheat A", "AntiCheat B"}
-    Speed = vape.Categories.Blatant:CreateModule({
-        Name = "Speed",
-        Function = function(callback)
-            if callback then
-                if SpeedValue.Value == 23.3 then SpeedValue.Value = 21 end
-                shared.SpeedBoostEnabled = SpeedDamageBoost.Enabled
-                Speed:Clean(vapeEvents.EntityDamageEvent.Event:Connect(function(damageTable)
-                    if damageTable.entityInstance == lplr.Character and (damageTable.damageType ~= 0 or damageTable.extra and damageTable.extra.chargeRatio ~= nil) and (not (damageTable.knockbackMultiplier and damageTable.knockbackMultiplier.disabled or damageTable.knockbackMultiplier and damageTable.knockbackMultiplier.horizontal == 0)) and SpeedDamageBoost.Enabled then 
-                        damagetick = tick() + 0.4
-                        lastdamagetick = tick() + 0.4
-                    end
-                end))
-                Speed:Clean(runservice.Heartbeat:Connect(function(delta)
-                    if entityLibrary.isAlive then
-                        if not (isnetworkowner(entityLibrary.character.HumanoidRootPart) and entityLibrary.character.Humanoid:GetState() ~= Enum.HumanoidStateType.Climbing and (not spiderActive) and (not vape.Modules.InfiniteFly.Enabled) and (not vape.Modules.Fly.Enabled)) then return end
-                        if vape.Modules.GrappleExploitOptionsButton and vape.Modules.GrappleExploit.Enabled then return end
-                        if LongJump.Enabled then return end
-                        if SpeedAnimation.Enabled then
-                            for i, v in pairs(entityLibrary.character.Humanoid:GetPlayingAnimationTracks()) do
-                                if v.Name == "WalkAnim" or v.Name == "RunAnim" then
-                                    v:AdjustSpeed(entityLibrary.character.Humanoid.WalkSpeed / 16)
-                                end
-                            end
-                        end
+	local alternatelist = {"Normal", "AntiCheat A", "AntiCheat B"}
+	Speed = vape.Categories.Blatant:CreateModule({
+		Name = "Speed",
+		Function = function(callback)
+			if callback then
+				if SpeedValue.Value == 23.3 then SpeedValue.Value = 21 end
+				shared.SpeedBoostEnabled = SpeedDamageBoost.Enabled
+				Speed:Clean(vapeEvents.EntityDamageEvent.Event:Connect(function(damageTable)
+					if damageTable.entityInstance == lplr.Character and (damageTable.damageType ~= 0 or damageTable.extra and damageTable.extra.chargeRatio ~= nil) and (not (damageTable.knockbackMultiplier and damageTable.knockbackMultiplier.disabled or damageTable.knockbackMultiplier and damageTable.knockbackMultiplier.horizontal == 0)) and SpeedDamageBoost.Enabled then 
+						damagetick = tick() + 0.4
+						lastdamagetick = tick() + 0.4
+					end
+				end))
+				Speed:Clean(runservice.Heartbeat:Connect(function(delta)
+					if entityLibrary.isAlive then
+						if not (isnetworkowner(entityLibrary.character.HumanoidRootPart) and entityLibrary.character.Humanoid:GetState() ~= Enum.HumanoidStateType.Climbing and (not spiderActive) and (not vape.Modules.InfiniteFly.Enabled) and (not vape.Modules.Fly.Enabled)) then return end
+						if vape.Modules.GrappleExploitOptionsButton and vape.Modules.GrappleExploit.Enabled then return end
+						if LongJump.Enabled then return end
+						if SpeedAnimation.Enabled then
+							for i, v in pairs(entityLibrary.character.Humanoid:GetPlayingAnimationTracks()) do
+								if v.Name == "WalkAnim" or v.Name == "RunAnim" then
+									v:AdjustSpeed(entityLibrary.character.Humanoid.WalkSpeed / 16)
+								end
+							end
+						end
 
-                        local speedValue = damagetick > tick() and SpeedValue.Value * 2.25 - 1 or SpeedValue.Value + getSpeed()
-                        local speedVelocity = entityLibrary.character.Humanoid.MoveDirection * (SpeedMode.Value == "Normal" and SpeedValue.Value or 20)
-                        entityLibrary.character.HumanoidRootPart.Velocity = antivoidvelo or Vector3.new(speedVelocity.X, entityLibrary.character.HumanoidRootPart.Velocity.Y, speedVelocity.Z)
+						local speedValue = damagetick > tick() and SpeedValue.Value * 2.25 - 1 or SpeedValue.Value + getSpeed()
+						local speedVelocity = entityLibrary.character.Humanoid.MoveDirection * (SpeedMode.Value == "Normal" and SpeedValue.Value or 20)
+						entityLibrary.character.HumanoidRootPart.Velocity = antivoidvelo or Vector3.new(speedVelocity.X, entityLibrary.character.HumanoidRootPart.Velocity.Y, speedVelocity.Z)
+						if SpeedMode.Value ~= "Normal" then
+							local speedCFrame = entityLibrary.character.Humanoid.MoveDirection * (speedValue - 20) * delta
+							raycastparameters.FilterDescendantsInstances = {lplr.Character}
+							local ray = game.Workspace:Raycast(entityLibrary.character.HumanoidRootPart.Position, speedCFrame, raycastparameters)
+							if ray then speedCFrame = (ray.Position - entityLibrary.character.HumanoidRootPart.Position) end
+							entityLibrary.character.HumanoidRootPart.CFrame = entityLibrary.character.HumanoidRootPart.CFrame + speedCFrame
+						end
 
-                        if SpeedMode.Value ~= "Normal" then
-                            local adjustedSpeed = math.max(speedValue - 20, 0)
-                            local speedCFrame = entityLibrary.character.Humanoid.MoveDirection * adjustedSpeed * delta
-
-                            if typeof(raycastparameters) ~= "RaycastParams" then
-                                raycastparameters = RaycastParams.new()
-                            end
-                            raycastparameters.FilterDescendantsInstances = {lplr.Character}
-
-                            if speedCFrame.Magnitude > 0 then
-                                local ray = game.Workspace:Raycast(entityLibrary.character.HumanoidRootPart.Position, speedCFrame, raycastparameters)
-                                if ray and ray.Position then
-                                    speedCFrame = (ray.Position - entityLibrary.character.HumanoidRootPart.Position)
-                                end
-                            end
-
-                            entityLibrary.character.HumanoidRootPart.CFrame = entityLibrary.character.HumanoidRootPart.CFrame + speedCFrame
-                        end
-
-                        if SpeedJump.Enabled and (not Scaffold.Enabled) and (SpeedJumpAlways.Enabled or killauraNearPlayer) then
-                            if (entityLibrary.character.Humanoid.FloorMaterial ~= Enum.Material.Air) and entityLibrary.character.Humanoid.MoveDirection ~= Vector3.zero then
-                                if SpeedJumpSound.Enabled then
-                                    pcall(function() entityLibrary.character.HumanoidRootPart.Jumping:Play() end)
-                                end
-                                if SpeedJumpVanilla.Enabled then
-                                    entityLibrary.character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-                                else
-                                    entityLibrary.character.HumanoidRootPart.Velocity = Vector3.new(entityLibrary.character.HumanoidRootPart.Velocity.X, SpeedJumpHeight.Value, entityLibrary.character.HumanoidRootPart.Velocity.Z)
-                                end
-                            end
-                        end
-                    end
-                end))
-            end
-        end,
-        HoverText = "Increases your movement.",
-        ExtraText = function()
-            return "Heatseeker"
-        end
-    })
-    Speed.Restart = function()
-        if Speed.Enabled then Speed:Toggle(false); Speed:Toggle(false) end
-    end
-    SpeedValue = Speed:CreateSlider({
-        Name = "Speed",
-        Min = 1,
-        Max = 23,
-        Function = function(val) end,
-        Default = 21
-    })
-    SpeedValueLarge = Speed:CreateSlider({
-        Name = "Big Mode Speed",
-        Min = 1,
-        Max = 23,
-        Function = function(val) end,
-        Default = 23
-    })
-    SpeedJump = Speed:CreateToggle({
-        Name = "AutoJump",
-        Function = function(callback)
-            if SpeedJumpHeight.Object then SpeedJumpHeight.Object.Visible = callback end
-            if SpeedJumpAlways.Object then
-                SpeedJumpAlways.Object.Visible = callback
-            end
-            if SpeedJumpSound.Object then SpeedJumpSound.Object.Visible = callback end
-            if SpeedJumpVanilla.Object then SpeedJumpVanilla.Object.Visible = callback end
-        end,
-        Default = true
-    })
-    SpeedJumpHeight = Speed:CreateSlider({
-        Name = "Jump Height",
-        Min = 0,
-        Max = 30,
-        Default = 25,
-        Function = function() end
-    })
-    SpeedJumpAlways = Speed:CreateToggle({
-        Name = "Always Jump",
-        Function = function() end
-    })
-    SpeedJumpSound = Speed:CreateToggle({
-        Name = "Jump Sound",
-        Function = function() end
-    })
-    SpeedJumpVanilla = Speed:CreateToggle({
-        Name = "Real Jump",
-        Function = function() end
-    })
-    SpeedAnimation = Speed:CreateToggle({
-        Name = "Slowdown Anim",
-        Function = function() end
-    })
+						if SpeedJump.Enabled and (not Scaffold.Enabled) and (SpeedJumpAlways.Enabled or killauraNearPlayer) then
+							if (entityLibrary.character.Humanoid.FloorMaterial ~= Enum.Material.Air) and entityLibrary.character.Humanoid.MoveDirection ~= Vector3.zero then
+								if SpeedJumpSound.Enabled then
+									pcall(function() entityLibrary.character.HumanoidRootPart.Jumping:Play() end)
+								end
+								if SpeedJumpVanilla.Enabled then
+									entityLibrary.character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+								else
+									entityLibrary.character.HumanoidRootPart.Velocity = Vector3.new(entityLibrary.character.HumanoidRootPart.Velocity.X, SpeedJumpHeight.Value, entityLibrary.character.HumanoidRootPart.Velocity.Z)
+								end
+							end
+						end
+					end
+				end))
+			end
+		end,
+		HoverText = "Increases your movement.",
+		ExtraText = function()
+			return "Heatseeker"
+		end
+	})
+	Speed.Restart = function()
+		if Speed.Enabled then Speed:Toggle(false); Speed:Toggle(false) end
+	end
+	--[[SpeedDamageBoost = Speed:CreateToggle({
+		Name = "Damage Boost",
+		Function = Speed.Restart,
+		Default = true
+	})--]]
+	SpeedValue = Speed:CreateSlider({
+		Name = "Speed",
+		Min = 1,
+		Max = 23,
+		Function = function(val) end,
+		Default = 21
+	})
+	SpeedValueLarge = Speed:CreateSlider({
+		Name = "Big Mode Speed",
+		Min = 1,
+		Max = 23,
+		Function = function(val) end,
+		Default = 23
+	})
+	SpeedJump = Speed:CreateToggle({
+		Name = "AutoJump",
+		Function = function(callback)
+			if SpeedJumpHeight.Object then SpeedJumpHeight.Object.Visible = callback end
+			if SpeedJumpAlways.Object then
+				SpeedJumpAlways.Object.Visible = callback
+			end
+			if SpeedJumpSound.Object then SpeedJumpSound.Object.Visible = callback end
+			if SpeedJumpVanilla.Object then SpeedJumpVanilla.Object.Visible = callback end
+		end,
+		Default = true
+	})
+	SpeedJumpHeight = Speed:CreateSlider({
+		Name = "Jump Height",
+		Min = 0,
+		Max = 30,
+		Default = 25,
+		Function = function() end
+	})
+	SpeedJumpAlways = Speed:CreateToggle({
+		Name = "Always Jump",
+		Function = function() end
+	})
+	SpeedJumpSound = Speed:CreateToggle({
+		Name = "Jump Sound",
+		Function = function() end
+	})
+	SpeedJumpVanilla = Speed:CreateToggle({
+		Name = "Real Jump",
+		Function = function() end
+	})
+	SpeedAnimation = Speed:CreateToggle({
+		Name = "Slowdown Anim",
+		Function = function() end
+	})
 end)
-
 
 run(function()
 	local function roundpos(dir, pos, size)
@@ -9919,8 +10017,7 @@ run(function()
 		Reach = vape.Categories.Combat:CreateModule({
 			Name = 'Reach',
 			Function = function(callback)
-				if callback and CombatConstant == nil then CombatConstant = require(game:GetService("ReplicatedStorage"):WaitForChild("TS").combat["combat-constant"]).CombatConstant end
-				CombatConstant.RAYCAST_SWORD_CHARACTER_DISTANCE = callback and Value.Value + 2 or 14.4
+				
 			end,
 			Tooltip = 'Extends attack reach'
 		})
@@ -9931,8 +10028,7 @@ run(function()
 			Default = 18,
 			Function = function(val)
 				if Reach.Enabled then
-					if CombatConstant == nil then CombatConstant = require(game:GetService("ReplicatedStorage"):WaitForChild("TS").combat["combat-constant"]).CombatConstant end
-					CombatConstant.RAYCAST_SWORD_CHARACTER_DISTANCE = val + 2
+					
 				end
 			end,
 			Suffix = function(val)
