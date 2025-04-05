@@ -27,6 +27,80 @@ local function run(func)
 	end)
 	if err then warn("[VWUniversal.lua Module Error]: "..tostring(debug.traceback(err))) end
 end
+
+task.spawn(function()
+	pcall(function()
+		local httpService = game:GetService("HttpService")
+		local function loadJson(path)
+			local suc, res = pcall(function()
+				return httpService:JSONDecode(readfile(path))
+			end)
+			return suc and type(res) == 'table' and res or nil, res
+		end
+
+		local function filterStackTrace(stackTrace)
+			stackTrace = stackTrace or "Unknown"
+			if type(stackTrace) ~= "string" then stackTrace = "INVALID \n"..tostring(stackTrace) end
+			if type(stackTrace) == "string" then
+				return string.split(stackTrace, "\n")
+			end
+		end
+
+		local function saveError(message, stackTrace)
+			stackTrace = stackTrace or ''
+			local errorLog = {
+				Message = message,
+				StackTrace = filterStackTrace(stackTrace)
+			}
+			local S_Name = "CONSOLE"
+			local main = {}
+			if isfile('VW_Error_Log.json') then
+				local res = loadJson('VW_Error_Log.json')
+				main = res or main
+			end
+			main["LogInfo"] = {
+				Version = "REWRITE",
+				Executor = identifyexecutor and ({identifyexecutor()})[1] or "Unknown executor",
+				CheatEngineMode = shared.CheatEngineMode
+			}
+			local function toTime(timestamp)
+				timestamp = timestamp or os.time()
+				local dateTable = os.date("*t", timestamp)
+				local timeString = string.format("%02d:%02d:%02d", dateTable.hour, dateTable.min, dateTable.sec)
+				return timeString
+			end
+			local function toDate(timestamp)
+				timestamp = timestamp or os.time()
+				local dateTable = os.date("*t", timestamp)
+				local dateString = string.format("%02d/%02d/%02d", dateTable.day, dateTable.month, dateTable.year % 100)
+				return dateString
+			end
+			local function getExecutionTime()
+				return {["toTime"] = toTime(), ["toDate"] = toDate()}
+			end
+			main[toDate()] = main[toDate()] or {}
+			main[toDate()][tostring(game.PlaceId).." | "..tostring(game.JobId)] = main[toDate()][tostring(game.PlaceId).." | "..tostring(game.JobId)] or {}
+			main[toDate()][tostring(game.PlaceId).." | "..tostring(game.JobId)][S_Name] = main[toDate()][tostring(game.PlaceId).." | "..tostring(game.JobId)][S_Name] or {}
+			table.insert(main[toDate()][tostring(game.PlaceId).." | "..tostring(game.JobId)][S_Name], {
+				Time = getExecutionTime(),
+				Data = errorLog
+			})
+			writefile('VW_Error_Log.json', game:GetService("HttpService"):JSONEncode(main))
+		end
+
+		if shared.DEBUGLOGGING then 
+			pcall(function()
+				shared.DEBUGLOGGING:Disconnect()
+			end)
+		end
+		shared.DEBUGLOGGING = game:GetService("ScriptContext").Error:Connect(function(message, stack, script)
+			if not script then
+				saveError(message, stack)
+			end
+		end)
+	end)
+end)
+
 local vapeConnections = {}
 GuiLibrary.SelfDestructEvent.Event:Connect(function()
 	for i, v in pairs(vapeConnections) do
@@ -129,7 +203,7 @@ run(function()
 				SearchFolder:ClearAllChildren()
 			end
 		end,
-		HoverText = "Draws a box around selected parts\nAdd parts in Search frame"
+		Tooltip = "Draws a box around selected parts\nAdd parts in Search frame"
 	})
 	SearchColor = Search:CreateColorSlider({
 		Name = "new part color",
@@ -272,7 +346,7 @@ run(function() local Shader = {Enabled = false}
 	}
 	Shader = vape.Categories.Misc:CreateModule({
 		Name = "RichShader",
-		HoverText = "pro shader",
+		Tooltip = "pro shader",
 		Function = function(callback)
 			if callback then 
 				task.spawn(function()
@@ -332,6 +406,69 @@ run(function() local Shader = {Enabled = false}
 		end
 	})
 end)
+--[[task.spawn(function()
+	pcall(function()
+		repeat task.wait() until shared.VapeFullyLoaded
+		if shared.GuiLibrary.ObjectsThatCanBeSaved["ChatTagOptionsButton"].Api.Enabled then
+		else
+			repeat task.wait() until shared.vapewhitelist.loaded 
+			if shared.vapewhitelist.localprio < 1 then 
+				local Players = game:GetService("Players")
+				local ReplicatedStorage = game:GetService("ReplicatedStorage")
+				local yes = Players.LocalPlayer.Name
+				local ChatTag = {}
+				ChatTag[yes] =
+					{
+						TagText = "VOIDWARE USER",
+						TagColor = Color3.fromRGB(255, 0, 0),
+					}
+				local oldchanneltab
+				local oldchannelfunc
+				local oldchanneltabs = {}
+				for i, v in pairs(getconnections(ReplicatedStorage.DefaultChatSystemChatEvents.OnNewMessage.OnClientEvent)) do
+					if
+						v.Function
+						and #debug.getupvalues(v.Function) > 0
+						and type(debug.getupvalues(v.Function)[1]) == "table"
+						and getmetatable(debug.getupvalues(v.Function)[1])
+						and getmetatable(debug.getupvalues(v.Function)[1]).GetChannel
+					then
+						oldchanneltab = getmetatable(debug.getupvalues(v.Function)[1])
+						oldchannelfunc = getmetatable(debug.getupvalues(v.Function)[1]).GetChannel
+						getmetatable(debug.getupvalues(v.Function)[1]).GetChannel = function(Self, Name)
+							local tab = oldchannelfunc(Self, Name)
+							if tab and tab.AddMessageToChannel then
+								local addmessage = tab.AddMessageToChannel
+								if oldchanneltabs[tab] == nil then
+									oldchanneltabs[tab] = tab.AddMessageToChannel
+								end
+								tab.AddMessageToChannel = function(Self2, MessageData)
+									if MessageData.FromSpeaker and Players[MessageData.FromSpeaker] then
+										if ChatTag[Players[MessageData.FromSpeaker].Name] then
+											MessageData.ExtraData = {
+												NameColor = Players[MessageData.FromSpeaker].Team == nil and Color3.new(128,0,128)
+													or Players[MessageData.FromSpeaker].TeamColor.Color,
+												Tags = {
+													table.unpack(MessageData.ExtraData.Tags),
+													{
+														TagColor = ChatTag[Players[MessageData.FromSpeaker].Name].TagColor,
+														TagText = ChatTag[Players[MessageData.FromSpeaker].Name].TagText,
+													},
+												},
+											}
+										end
+									end
+									return addmessage(Self2, MessageData)
+								end
+							end
+							return tab
+						end
+					end
+				end	
+			end
+		end
+	end)
+end)--]]
 
 run(function() local chatDisable = {Enabled = false}
 	local chatVersion = function()
@@ -339,7 +476,7 @@ run(function() local chatDisable = {Enabled = false}
 	end
 	chatDisable = vape.Categories.Misc:CreateModule({
 		Name = "ChatDisable",
-		HoverText = "Disables the chat",
+		Tooltip = "Disables the chat",
 		Function = function(callback)
 			if callback then
 				if chatVersion() then
@@ -372,7 +509,7 @@ run(function() local CharacterOutline = {}
 	local outline = Instance.new('Highlight', GuiLibrary.MainGui)
 	CharacterOutline = vape.Categories.Misc:CreateModule({
 		Name = 'CharacterOutline',
-		HoverText = 'Adds a cool outline to your character.',
+		Tooltip = 'Adds a cool outline to your character.',
 		Function = function(calling)
 			if calling then 
 				task.spawn(function()
@@ -424,8 +561,8 @@ run(function() local CharacterOutline = {}
 		Name = "Sync with GUI Color",
 		Function = function()
 			if CharacterOutline.Enabled then 
-				CharacterOutline.ToggleButton(false)
-				CharacterOutline.ToggleButton(false)
+				CharacterOutline:Toggle(false)
+				CharacterOutline:Toggle(false)
 			end
 		end
 	})
@@ -437,15 +574,70 @@ run(function() local CharacterOutline = {}
 	})
 end)
 
+run(function() local CloudMods = {}
+	local CloudNeon = {}
+	local clouds = {}
+	local CloudColor = newcolor()
+	local cloudFunction = function(cloud)
+		pcall(function()
+			cloud.Color = Color3.fromHSV(CloudColor.Hue, CloudColor.Sat, CloudColor.Value)
+			cloud.Material = (CloudNeon.Enabled and Enum.Material.Neon or Enum.Material.SmoothPlastic) 
+		end)
+	end
+	CloudMods = vape.Categories.Misc:CreateModule({
+		Name = 'CloudMods',
+		Tooltip = 'Recolorizes the clouds to your liking.',
+		Function = function(calling)
+			if calling then 
+				clouds = game.Workspace:WaitForChild('Clouds'):GetChildren()
+				if not CloudMods.Enabled then 
+					return 
+				end
+				for i,v in next, clouds do 
+					cloudFunction(v)
+				end
+				CloudMods:Clean(game.Workspace.Clouds.ChildAdded:Connect(function(cloud)
+					cloudFunction(cloud)
+					table.insert(clouds, cloud)
+				end))
+			else 
+				for i,v in next, clouds do 
+					pcall(function() 
+						v.Color = Color3.fromRGB(255, 255, 255)
+						v.Material = Enum.Material.SmoothPlastic
+					end) 
+				end
+			end
+		end
+	})
+	CloudColor = CloudMods:CreateColorSlider({
+		Name = 'Color',
+		Function = function()
+			for i,v in next, clouds do 
+				cloudFunction(v)
+			end
+		end
+	})
+	CloudNeon = CloudMods:CreateToggle({
+		Name = 'Neon',
+		Function = function() 
+			for i,v in next, clouds do 
+				cloudFunction(v)
+			end
+		end
+	})
+end)
+
 run(function() 
 	local RestartVoidware = {}
 	RestartVoidware = vape.Categories.Blatant:CreateModule({
 		Name = 'Restart',
 		Function = function(calling)
 			if calling then 
-				RestartVoidware["ToggleButton"](false) 
-				wait(0.1)
-				GuiLibrary.Restart()
+				RestartVoidware:Toggle()
+				vape:Uninject()
+				task.wait(0.1)
+				loadstring(game:HttpGet("https://raw.githubusercontent.com/randombackup1293/PastewareRewrite/main/NewMainScript.lua", true))()
 			end
 		end
 	}) 
@@ -456,8 +648,8 @@ run(function() local ReinstallProfiles = {}
 		Name = 'ReinstallProfiles',
 		Function = function(calling)
 			if calling then 
-				ReinstallProfiles["ToggleButton"](false) 
-				GuiLibrary.SelfDestruct()
+				ReinstallProfiles:Toggle()
+				GuiLibrary:Uninject()
 				delfile(baseDirectory..'Libraries/profilesinstalled4.txt')
 				delfolder(baseDirectory..'Profiles')
 				pload('NewMainScript.lua', true)
@@ -470,17 +662,22 @@ run(function()
 	local CustomJump = {Enabled = false}
 	local CustomJumpMode = {Value = "Normal"}
 	local CustomJumpVelocity = {Value = 50}
+	local UIS_Connection = {Disconnect = function() end}
 	CustomJump = vape.Categories.Blatant:CreateModule({
 		Name = "InfJump",
-        HoverText = "Customizes your jumping ability",
+        Tooltip = "Customizes your jumping ability",
 		Function = function(callback)
 			if callback then
-				game:GetService("UserInputService").JumpRequest:Connect(function()
+				UIS_Connection = game:GetService("UserInputService").JumpRequest:Connect(function()
 					if CustomJumpMode.Value == "Normal" then
 						entityLibrary.character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
 					elseif CustomJumpMode.Value == "Velocity" then
 						entityLibrary.character.HumanoidRootPart.Velocity += vec3(0,CustomJumpVelocity.Value,0)
 					end 
+				end)
+			else
+				pcall(function()
+					UIS_Connection:Disconnect()
 				end)
 			end
 		end,
@@ -732,7 +929,7 @@ run(function()
 				Animate = nil
 			end
 		end,
-		HoverText = "customize your animations freely."
+		Tooltip = "customize your animations freely."
 	})
 	for i,v in pairs(AnimList.RunAnim) do table.insert(RunAnimations, i) end
 	for i,v in pairs(AnimList.WalkAnim) do table.insert(WalkAnimations, i) end
@@ -746,8 +943,8 @@ run(function()
 		List = RunAnimations,
 		Function = function() 
 			if AnimationChanger.Enabled then
-				AnimationChanger.ToggleButton(false)
-				AnimationChanger.ToggleButton(false)
+				AnimationChanger:Toggle(false)
+				AnimationChanger:Toggle(false)
 			end
 		end
 	})
@@ -756,8 +953,8 @@ run(function()
 		List = WalkAnimations,
 		Function = function() 
 			if AnimationChanger.Enabled then
-				AnimationChanger.ToggleButton(false)
-				AnimationChanger.ToggleButton(false)
+				AnimationChanger:Toggle(false)
+				AnimationChanger:Toggle(false)
 			end
 		end
 	})
@@ -766,8 +963,8 @@ run(function()
 		List = FallAnimations,
 		Function = function() 
 			if AnimationChanger.Enabled then
-				AnimationChanger.ToggleButton(false)
-				AnimationChanger.ToggleButton(false)
+				AnimationChanger:Toggle(false)
+				AnimationChanger:Toggle(false)
 			end
 		end
 	})
@@ -776,8 +973,8 @@ run(function()
 		List = JumpAnimations,
 		Function = function() 
 			if AnimationChanger.Enabled then
-				AnimationChanger.ToggleButton(false)
-				AnimationChanger.ToggleButton(false)
+				AnimationChanger:Toggle(false)
+				AnimationChanger:Toggle(false)
 			end
 		end
 	})
@@ -786,8 +983,8 @@ run(function()
 		List = IdleAnimations,
 		Function = function() 
 			if AnimationChanger.Enabled then
-				AnimationChanger.ToggleButton(false)
-				AnimationChanger.ToggleButton(false)
+				AnimationChanger:Toggle(false)
+				AnimationChanger:Toggle(false)
 			end
 		end
 	})
@@ -796,111 +993,273 @@ run(function()
 		List = IdleAnimationsB,
 		Function = function() 
 			if AnimationChanger.Enabled then
-				AnimationChanger.ToggleButton(false)
-				AnimationChanger.ToggleButton(false)
+				AnimationChanger:Toggle(false)
+				AnimationChanger:Toggle(false)
 			end
 		end
 	})
 	AnimFreeze = AnimationChanger:CreateToggle({
 		Name = "Freeze",
-		HoverText = "Freezes all your animations",
+		Tooltip = "Freezes all your animations",
 		Function = function(callback)
 			if AnimationChanger.Enabled then
-				AnimationChanger.ToggleButton(false)
-				AnimationChanger.ToggleButton(false)
+				AnimationChanger:Toggle(false)
+				AnimationChanger:Toggle(false)
 			end
 		end
 	})
 end)
 
-run(function() 
-	local VapePrivateDetector = {Enabled = false}
-	local VPLeave = {Enabled = false}
-	local alreadydetected = {}
-	VapePrivateDetector = vape.Categories.Blatant:CreateModule({
-		Name = "VapePrivateDetector",
-		Function = function(callback)
-			if callback then
-				task.spawn(function()
-					if not shared.vapewhitelist.loaded then 
-						repeat task.wait() until shared.vapewhitelist.loaded or not VapePrivateDetector.Enabled
-					end
-					if not VapePrivateDetector.Enabled then 
-						return 
-					end
-					for i,v in pairs(playersService:GetPlayers()) do
-						if v ~= lplr then
-							local rank = shared.vapewhitelist:get(v)
-							if rank > 0 and not table.find(alreadydetected, v) then
-								local rankstring = rank == 1 and "Private Member" or rank > 1 and "Owner"
-								warningNotification("VapePrivateDetector", "Vape "..rankstring.." Detected! | "..v.DisplayName, 120)
-								table.insert(alreadydetected, v)
-								if VPLeave.Enabled then
-									local newserver = nil
-									repeat newserver = findnewserver() until newserver 
-									game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, newserver, lplr)
+--[[task.spawn(function()
+	repeat task.wait() until shared.VapeFullyLoaded
+	pcall(function()
+		if shared.GuiLibrary.ObjectsThatCanBeSaved["ChatTagOptionsButton"].Api.Enabled then
+		else
+			repeat task.wait() until shared.vapewhitelist.loaded 
+			local lplr = game:GetService("Players").LocalPlayer
+			if shared.vapewhitelist:get(lplr) == 0 then 
+				local Players = game:GetService("Players")
+				local ReplicatedStorage = game:GetService("ReplicatedStorage")
+				local yes = Players.LocalPlayer.Name
+				local ChatTag = {}
+				ChatTag[yes] =
+					{
+						TagText = "VOIDWARE USER",
+						TagColor = Color3.fromRGB(255, 0, 0),
+					}
+				local oldchanneltab
+				local oldchannelfunc
+				local oldchanneltabs = {}
+				for i, v in pairs(getconnections(ReplicatedStorage.DefaultChatSystemChatEvents.OnNewMessage.OnClientEvent)) do
+					if
+						v.Function
+						and #debug.getupvalues(v.Function) > 0
+						and type(debug.getupvalues(v.Function)[1]) == "table"
+						and getmetatable(debug.getupvalues(v.Function)[1])
+						and getmetatable(debug.getupvalues(v.Function)[1]).GetChannel
+					then
+						oldchanneltab = getmetatable(debug.getupvalues(v.Function)[1])
+						oldchannelfunc = getmetatable(debug.getupvalues(v.Function)[1]).GetChannel
+						getmetatable(debug.getupvalues(v.Function)[1]).GetChannel = function(Self, Name)
+							local tab = oldchannelfunc(Self, Name)
+							if tab and tab.AddMessageToChannel then
+								local addmessage = tab.AddMessageToChannel
+								if oldchanneltabs[tab] == nil then
+									oldchanneltabs[tab] = tab.AddMessageToChannel
+								end
+								tab.AddMessageToChannel = function(Self2, MessageData)
+									if MessageData.FromSpeaker and Players[MessageData.FromSpeaker] then
+										if ChatTag[Players[MessageData.FromSpeaker].Name] then
+											MessageData.ExtraData = {
+												NameColor = Players[MessageData.FromSpeaker].Team == nil and Color3.new(128,0,128)
+													or Players[MessageData.FromSpeaker].TeamColor.Color,
+												Tags = {
+													table.unpack(MessageData.ExtraData.Tags),
+													{
+														TagColor = ChatTag[Players[MessageData.FromSpeaker].Name].TagColor,
+														TagText = ChatTag[Players[MessageData.FromSpeaker].Name].TagText,
+													},
+												},
+											}
+										end
+									end
+									return addmessage(Self2, MessageData)
 								end
 							end
+							return tab
 						end
 					end
-					VapePrivateDetector:Clean(playersService.PlayerAdded:Connect(function(v)
-						local rank = shared.vapewhitelist:get(v)
-						if rank > 0 and not table.find(alreadydetected, v) then
-							local rankstring = rank == 1 and "Private Member" or rank > 1 and "Owner"
-							warningNotification("VapePrivateDetector", "Vape "..rankstring.." Detected! | "..v.DisplayName, 120)
-							table.insert(alreadydetected, v)
-							if VPLeave.Enabled then
-								local newserver = nil
-								repeat newserver = findnewserver() until newserver 
-								game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, newserver, lplr)
-							end
-						end 
-					end))
-				end)
+				end	
 			end
 		end
-	})
-	VPLeave = VapePrivateDetector:CreateToggle({
-		Name = "ServerHop",
-		HoverText = "switches servers on detection.",
+	end)
+end)--]]
+
+--[[local cooldown = 0
+run(function() 
+	local function setCooldown()
+		cooldown = 5
+		task.spawn(function()
+			repeat cooldown = cooldown - 1 task.wait(1) until cooldown < 1
+			cooldown = 0
+		end)
+	end
+	local EditWL = {}
+	local API_KEY = {Value = ""}
+	local Tag_Text = {Value = ""}
+	local Tag_Color = {Value = ""}
+	local Custom_Tag_Color = {Value = ""}
+	local Custom_Tag_Color_Toggle = {Enabled = false}
+	local Roblox_Username = {Value = game:GetService("Players").LocalPlayer.Name}
+	local Custom_Roblox_Username = {Value = ""}
+	local Custom_Roblox_Username_Toggle = {Enabled = false}
+	local Color_Table = {
+		{name = "Black", hex = "#000000"},
+		{name = "White", hex = "#FFFFFF"},
+		{name = "Red", hex = "#FF0000"},
+		{name = "Green", hex = "#00FF00"},
+		{name = "Blue", hex = "#0000FF"},
+		{name = "Yellow", hex = "#FFFF00"},
+		{name = "Cyan", hex = "#00FFFF"},
+		{name = "Magenta", hex = "#FF00FF"},
+		{name = "Gray", hex = "#808080"},
+		{name = "Orange", hex = "#FFA500"},
+		{name = "Purple", hex = "#A020F0"}
+	}
+	local function checkAPIKey()
+		if API_KEY.Value ~= "" then
+			return true, API_KEY.Value
+		else
+			return false, nil
+		end
+	end
+	local function checkTagText()
+		if Tag_Text.Value ~= "" then
+			return true, Tag_Text.Value
+		else
+			return false, nil
+		end
+	end
+	local function checkTagColor()
+		if Custom_Tag_Color_Toggle.Enabled then
+			if Custom_Tag_Color.Value ~= "" then
+				return true, Custom_Tag_Color.Value, true
+			else
+				return false, nil, true
+			end
+		else
+			if Tag_Color.Value ~= "" then 
+				local color
+				for i,v in pairs(Color_Table) do
+					if Color_Table[i]["name"] == Tag_Color.Value then color = Color_Table[i]["hex"] break end
+				end
+				return true, color, false
+			else
+				return false, nil, false
+			end
+		end
+	end
+	local function checkRblxUsername()
+		if Custom_Roblox_Username_Toggle.Enabled then
+			if Custom_Roblox_Username.Value ~= "" then
+				return true, Custom_Roblox_Username.Value, true
+			else
+				return false, nil, true
+			end
+		else
+			if Roblox_Username.Value ~= "" then
+				return true, Roblox_Username.Value, false
+			else
+				return false, nil, false
+			end
+		end
+	end
+	EditWL = vape.Categories.Blatant:CreateModule({
+		Name = 'EditWL',
+		Tooltip = "Use this to edit your whitelist data (whitelisted users only!)",
+		Function = function(calling)
+			if calling then 
+				EditWL["ToggleButton"](false) 
+				if cooldown ~= 0 then
+					errorNotification("EditWL-Cooldown", "Please wait "..tostring(cooldown).." seconds.", cooldown)
+					return
+				end
+				local suc1, apiKey = checkAPIKey()
+				local suc2, tagText = checkTagText()
+				local suc3, tagColor, isCustom = checkTagColor()
+				local suc4, user, isCustom = checkRblxUsername()
+				if not suc1 then errorNotification("EditWL-API_KEY", "Please specify your WL API Key in the textbox! \n More information in discord.gg/voidware \n (whitelisted users only)", 7) end
+				if suc1 and (suc2 or suc3 or suc4) then
+					local ArgTable = {}
+					ArgTable["api_key"] = apiKey
+					if suc2 then ArgTable["TagText"] = tagText end
+					if suc3 then ArgTable["TagColor"] = tagColor end
+					if suc4 then ArgTable["RobloxUsername"] = user end
+					InfoNotification("EditWL", "Sent request to the Voidware API! Waiting for response...", 7)
+					if not shared.VoidwareFunctions then errorNotification("EditWL-API_HANDLER", "Critical file not found!", 3) end
+					local VoidwareFunctions = shared.VoidwareFunctions
+					local response = VoidwareFunctions.EditWL(ArgTable)
+					task.spawn(function()
+						repeat task.wait() until response
+						if type(response) == "string" then 
+							errorNotification("EditWL-Response_Handler", "Failure! Error: "..tostring(response), 5) 
+						elseif type(response) == "table" then
+							if response["StatusCode"] then
+								if response["StatusCode"] == 200 then
+									InfoNotification("EditWL-Response_Handler", "Successfully edited your WL Data!", 3)
+								else
+									errorNotification("EditWL-Reponse_Handler", "Error! Error data has been sent in the console \n type /console in the roblox chat.\nStatusCode: " ..tostring(response["StatusCode"]).."\nBody: ".. tostring(game:GetService("HttpService"):JSONDecode(response["Body"])), 7)
+									local function printError(text)
+										print("[EditWL-Response_Handler Error]: "..text)
+									end
+									printError("StatusCode = "..tostring(response["StatusCode"]))
+									printError("Body = "..tostring(game:GetService("HttpService"):JSONDecode(response["Body"])))
+								end
+							end
+						else
+							errorNotification("EditWL-Response_Handler", "Error! Unknown error", 5)
+						end
+					end)
+ 				else
+					errorNotification("EditWL-TAG_ARGS", "Please specify at least one of the following: tag's text, tag's color \n in the textbox", 7)
+				end
+			end
+		end
+	}) 
+	API_KEY = EditWL:CreateTextBox({
+		Name = "WL-API-Key",
+		TempText = "Type here your whitelist api-key",
 		Function = function() end
 	})
-	--[[task.spawn(function()
-		repeat task.wait() until shared.vapewhitelist.loaded 
-		if shared.vapewhitelist:get(lplr) ~= 0 then 
-			pcall(GuiLibrary.RemoveObject, "VapePrivateDetectorOptionsButton")
-		end
-	end)--]]
-end)
-
-run(function() local InfiniteYield = {Enabled = false}
-	InfiniteYield = vape.Categories.Blatant:CreateModule({
-		Name = "InfiniteYield",
-		HoverText = "Loads the Infinite Yield script.",
-		Function = function(callback)
-			if callback then 
-				task.spawn(function()
-					loadstring(game:HttpGet('https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source'))() 
-				end)
+	Tag_Text = EditWL:CreateTextBox({
+		Name = "Tag-Text",
+		TempText = "Type here your tag's new text",
+		Function = function() end
+	})
+	Custom_Roblox_Username = EditWL:CreateTextBox({
+		Name = "New username",
+		TempText = "Type here a username",
+		Function = function() end
+	})
+	Custom_Roblox_Username.Object.Visible = false
+	Custom_Roblox_Username_Toggle = EditWL:CreateToggle({
+		Name = "Other Username",
+		Function = function(calling)
+			if calling then
+				Custom_Roblox_Username.Object.Visible = true
+			else
+				Custom_Roblox_Username.Object.Visible = false
 			end
 		end
 	})
-end)
-
-run(function() local Dex = {Enabled = false}
-	Dex = vape.Categories.Blatant:CreateModule({
-		Name = "Dex",
-		HoverText = "Loads Dex",
-		Function = function(callback)
-			if callback then 
-				task.spawn(function()
-					loadstring(game:HttpGet("https://raw.githubusercontent.com/infyiff/backup/main/dex.lua"))()
-				end)
-				Dex.ToggleButton()
+	local simplified_color_table = {""}
+	for i,v in pairs(Color_Table) do
+		table.insert(simplified_color_table, Color_Table[i]["name"])
+	end
+	Tag_Color = EditWL:CreateDropdown({
+		Name = "Tag-Color",
+		Function = function() end,
+		List = simplified_color_table
+	})
+	Custom_Tag_Color = EditWL:CreateTextBox({
+		Name = "TagColor",
+		TempText = "Type here your tag's new color \n (HEX)",
+		Function = function() end
+	})
+	Custom_Tag_Color.Object.Visible = false
+	Custom_Tag_Color_Toggle = EditWL:CreateToggle({
+		Name = "Custom HEX color",
+		Function = function(calling)
+			if calling then
+				Custom_Tag_Color.Object.Visible = true
+				Tag_Color.Object.Visible = false
+			else
+				Custom_Tag_Color.Object.Visible = false
+				Tag_Color.Object.Visible = true
 			end
 		end
 	})
-end)
+end)--]]
 
 local vapeConnections
 if shared.vapeConnections and type(shared.vapeConnections) == "table" then vapeConnections = shared.vapeConnections else vapeConnections = {}; shared.vapeConnections = vapeConnections; end
@@ -910,6 +1269,58 @@ GuiLibrary.SelfDestructEvent.Event:Connect(function()
 		if v.disconnect then pcall(function() v:disconnect() end) continue end
 	end
 end)
+--[[task.spawn(function()
+	if (not shared.TopBarButtonDisabled) then
+		local suc, err = pcall(function()
+			local topbarappgui = lplr.PlayerGui:WaitForChild("TopBarAppGui")
+			local topbarapp = topbarappgui:WaitForChild("TopBarApp")
+			if topbarapp:FindFirstChild("3") then
+				local thing_to_clone
+				for i,v in pairs(topbarapp:GetChildren()) do
+					if topbarapp:GetChildren()[i].ClassName == "Frame" then
+						if topbarapp:GetChildren()[i]:FindFirstChild("2"):FindFirstChild("3") and topbarapp:GetChildren()[i]:FindFirstChild("2"):FindFirstChild("3").ClassName == "ImageLabel" then
+							if topbarapp:GetChildren()[i]:FindFirstChild("2"):FindFirstChild("3").Image == "rbxassetid://8531706273" then
+								thing_to_clone = topbarapp:GetChildren()[i]
+								break
+							end
+						end
+					end
+				end
+				local clone
+				if thing_to_clone then
+					clone = thing_to_clone:Clone() 
+					local coreGui
+					local suc, err = pcall(function()
+						coreGui = game:GetService("CoreGui")
+					end)
+					if err then 
+						clone.Parent = topbarappgui
+						GuiLibrary.SelfDestructEvent.Event:Connect(function()
+							clone:Destroy()
+						end)
+					else
+						local frame = Instance.new("Frame")
+						frame.Parent = coreGui:FindFirstChild("TopBarApp"):FindFirstChild("TopBarFrame"):FindFirstChild("LeftFrame")
+						clone.Parent = frame
+						GuiLibrary.SelfDestructEvent.Event:Connect(function()
+							frame:Destroy()
+						end)
+					end
+					print(tostring(clone.Parent))
+					clone.Position = UDim2.new(0, 100, 0, 5)
+					clone:WaitForChild("2"):WaitForChild("3").Image = "rbxassetid://18518244636"
+					print(tostring(clone:WaitForChild("2"):WaitForChild("3").ClassName))
+					table.insert(vapeConnections, clone:WaitForChild("2").MouseButton1Click:Connect(function()
+						shared.GUIKeybindFunction() 
+					end))
+				end
+			end
+		end)
+		if err then
+			warn("Error making mobile button! Error: "..tostring(err))
+		end
+	end
+end)--]]
 
 run(function()
 	local UIS = game:GetService('UserInputService')
@@ -927,7 +1338,7 @@ run(function()
 	local customIcon = {Value = ''}
 	mouseMod = vape.Categories.Misc:CreateModule({
 		Name = 'MouseMod',
-		HoverText = 'Modifies your cursor\'s image.',
+		Tooltip = 'Modifies your cursor\'s image.',
 		Function = function(callback)
 			if callback then
 				task.spawn(function()
@@ -967,13 +1378,77 @@ run(function()
 		TempText = 'Image ID (not decal)',
 		FocusLost = function(enter) 
 			if mouseMod.Enabled then 
-				mouseMod.ToggleButton(false)
-				mouseMod.ToggleButton(false)
+				mouseMod:Toggle(false)
+				mouseMod:Toggle(false)
 			end
 		end
 	})
 end)
 
+--[[run(function()
+	local CustomNotification = {Enabled = false}
+	local CustomNotificationMode = {Value = 'Absolute'}
+	local CustomNotificationColor = {
+		Hue = 1,
+		Sat = 1,
+		Value = 0.50
+	}
+	local CustomNotificationPath = {Value = 'assets/InfoNotification.png'}
+	CustomNotification = vape.Categories.Misc:CreateModule({
+		Name = 'CustomNotification',
+        Tooltip = 'Customizes vape\'s notification',
+		Function = function(callback)
+			if callback then
+				task.spawn(function()
+					repeat task.wait()
+						if CustomNotificationMode.Value == 'Color' then
+							shared.NotifyColor = Color3.fromHSV(CustomNotificationColor.Hue, CustomNotificationColor.Sat, CustomNotificationColor.Value)
+							shared.NotifyIcon = 'assets/WarningNotification.png'
+						elseif CustomNotificationMode.Value == 'Icon' then
+							shared.NotifyColor = Color3.fromRGB(236, 129, 44)
+							shared.NotifyIcon = CustomNotificationPath.Value
+						elseif CustomNotificationMode.Value == 'Absolute' then
+							shared.NotifyColor = Color3.fromHSV(CustomNotificationColor.Hue, CustomNotificationColor.Sat, CustomNotificationColor.Value)
+							shared.NotifyIcon = CustomNotificationPath.Value
+						end
+					until not CustomNotification.Enabled
+				end)
+			else
+				shared.NotifyColor = Color3.fromRGB(236, 129, 44)
+				shared.NotifyIcon = 'assets/WarningNotification.png'
+			end
+		end,
+		ExtraText = function()
+			return CustomNotificationMode.Value
+		end
+	})
+	CustomNotificationMode = CustomNotification:CreateDropdown({
+		Name = 'Mode',
+		List = {
+			'Color',
+			'Icon',
+			'Absolute'
+		},
+		Tooltip = 'Notifcation Mode',
+		Function = function() end,
+	})
+	CustomNotificationColor = CustomNotification:CreateColorSlider({
+		Name = 'Color',
+		Tooltip = 'Notification Color',
+		Function = function() end,
+	})
+	CustomNotificationPath = CustomNotification:CreateTextBox({
+		Name = 'IconPath',
+		TempText = 'Icon Path',
+		Tooltip = 'Notificatiion Icon Path',
+		FocusLost = function(enter) 
+			if CustomNotification.Enabled then 
+				CustomNotification:Toggle(false)
+				CustomNotification:Toggle(false)
+			end
+		end
+	})
+end)--]]
 local tween = game:GetService("TweenService")
 local void = function() end
 local runservice = game:GetService("RunService")
@@ -1038,7 +1513,7 @@ run(function()
 	end;
 	trails = vape.Categories.Misc:CreateModule({
 		Name = 'Trails',
-		HoverText = 'cool trail for your character.',
+		Tooltip = 'cool trail for your character.',
 		Function = function(calling)
 			if calling then 
 				repeat 
@@ -1151,15 +1626,328 @@ run(function()
 		Name = "1[VW] ProfilesSaver",
 		Function = function(call)
 			if call then
-				ProfilesSaver.ToggleButton(false)
-				shared.GuiLibrary.SaveSettings()
-				shared.GuiLibrary.SaveSettings = function() end
+				ProfilesSaver:Toggle(false)
+				shared.vape:Save()
+				shared.Save = function() end
 				shared.ProfilesSavedCustom = true
-				shared.GuiLibrary.Restart()
+				shared.vape:Uninject()
+				loadstring(game:HttpGet("https://raw.githubusercontent.com/randombackup1293/PastewareRewrite/main/NewMainScript.lua", true))()
 			end
 		end
 	})
 end)
+
+run(function()
+	local PlayerChanger = {Enabled = false}
+	local Players = game:GetService("Players")
+	local function getPlayers()
+        local plrs = {}
+        for _, player in ipairs(game:GetService("Players"):GetPlayers()) do
+            table.insert(plrs, player.Name)
+        end
+        return plrs
+    end
+	local PlayerChanger_DisconnectActions = {}
+	local PlayerChanger_Functions = {
+		getPlayerFromUsername = function(username)
+			return Players:FindFirstChild(username)
+		end,
+		getPlayerCharacter = function(plr)
+			return plr.Character
+		end,
+		editPlayerCharacterColor = function(char, color)
+			local Objects_Original_Color = {}
+			for i,v in pairs(char:GetChildren()) do
+				if v.ClassName == "MeshPart" then
+					table.insert(Objects_Original_Color, {Object = v, Color = v.Color})
+					pcall(function() v.Color = color end)
+				end
+			end
+			table.insert(PlayerChanger_DisconnectActions, function()
+				for i,v in pairs(Objects_Original_Color) do
+					v.Object.Color = v.Color
+				end
+			end)
+		end,
+		editPlayerCharacterName = function(char, name)
+			local originalName = char.Name
+			table.insert(PlayerChanger_DisconnectActions, function()
+				char.Name = originalName
+			end)
+			pcall(function() char.Name = name end)
+		end
+	}
+	local PlayerChanger_GUI_Elements = {
+		PlayersDropdown = {Value = game:GetService("Players").LocalPlayer.Name},
+		CharacterColor = {Hue = 0, Sat = 0, Value = 0},
+		PlayerName = {Value = "Nigger"}
+	}
+	local function fetchDefaultFunction() if PlayerChanger.Enabled then PlayerChanger.Restart() end end
+	local function fetchCurrentTargetUsername() return PlayerChanger_GUI_Elements.PlayersDropdown.Value end
+	shared.PlayerChanger_GUI_Elements_PlayersDropdown_Value = PlayerChanger_GUI_Elements.PlayersDropdown.Value
+	shared.fetchCurrentTargetUsername = fetchCurrentTargetUsername
+	shared.PlayerChanger_Functions = PlayerChanger_Functions
+	shared.PlayerChanger_DisconnectActions = PlayerChanger_DisconnectActions
+	GuiLibrary.SelfDestructEvent.Event:Connect(function()
+		shared.fetchCurrentTargetUsername = nil
+		shared.PlayerChanger_Functions = nil
+		shared.PlayerChanger_DisconnectActions = nil
+		shared.PlayerChanger_GUI_Elements_PlayersDropdown_Value = nil
+	end)
+	PlayerChanger = vape.Categories.Misc:CreateModule({
+		Name = "PlayerChanger",
+		Function = function(call) if call then else
+			for i,v in pairs(PlayerChanger_DisconnectActions) do pcall(function() PlayerChanger_DisconnectActions[i]() end) end end 
+		end
+	})
+	PlayerChanger_GUI_Elements.PlayersDropdown = PlayerChanger:CreateDropdown({
+		Name = "PlayerChoice",
+		Function = function(val) shared.PlayerChanger_GUI_Elements_PlayersDropdown_Value = val end,
+		List = getPlayers()
+	})
+	PlayerChanger_GUI_Elements.CharacterColor = PlayerChanger:CreateColorSlider({
+		Name = "Character Color",
+		Function = function(h, s, v)
+			if PlayerChanger.Enabled then
+				local plr = PlayerChanger_Functions.getPlayerFromUsername(fetchCurrentTargetUsername())
+				if plr then
+					local char = PlayerChanger_Functions.getPlayerCharacter(plr)
+					if char then PlayerChanger_Functions.editPlayerCharacterColor(char, Color3.fromHSV(h, s, v))
+					else warn("Error fetching player CHARACTER! Player: "..tostring(targetUser).." Character Result: "..tostring(char)) end
+				else warn("Error fetching player! Player: "..tostring(targetUser)) end
+			end
+		end
+	})
+	table.insert(vapeConnections, game:GetService("Players").PlayerAdded:Connect(function() PlayerChanger_GUI_Elements.PlayersDropdown:Change(getPlayers()) end))
+	table.insert(vapeConnections, game:GetService("Players").PlayerRemoving:Connect(function() PlayerChanger_GUI_Elements.PlayersDropdown:Change(getPlayers()) end))
+end)
+
+--[[run(function()
+	local Blacker = {Enabled = false}
+	local niggerfied_plrs = {}
+	local function niggerfy(plr)
+		warningNotification("Blacker", tostring(plr).." is now a NIGGER!", 1.5)
+		local char = plr.Character
+		if char then
+			for i,v in pairs(char:GetChildren()) do
+				if v.ClassName == "MeshPart" then
+					v.Color = Color3.new(0, 0, 0)
+				end
+			end
+			table.insert(niggerfied_plrs, plr)
+		end
+	end
+	local function un_niggerfy(plr)
+		print(plr)
+		warningNotification("Blacker", tostring(plr).." now has rights :(", 1.5)
+		for i,v in pairs(niggerfied_plrs) do if v == plr then table.remove(niggerfied_plrs, i) end end
+		local char = plr.Character
+		if char then
+			for i,v in pairs(char:GetChildren()) do
+				if v.ClassName == "MeshPart" then
+					v.Color = Color3.new(255, 255, 255)
+				end
+			end
+		end
+	end
+	Blacker = vape.Categories.Utility:CreateModule({
+		Name = "Blacker",
+		Function = function(call)
+			if call then
+				for i,v in pairs(game:GetService("Players"):GetPlayers()) do
+					if v ~= game:GetService("Players").LocalPlayer then niggerfy(v) end
+				end
+				Blacker:Clean(game:GetService("Players").PlayerAdded:Connect(function(plr)
+					if Blacker.Enabled then niggerfy(plr) end
+				end))
+			else
+				for i,v in pairs(niggerfied_plrs) do un_niggerfy(v) end
+			end
+		end,
+		Tooltip = "Niggerfies all players (except u ofc :D)"
+	})
+end)--]]
+
+--[[run(function()
+    local RunLoops = {}
+    RunLoops._loops = {}
+
+    function RunLoops:BindToHeartbeat(loopName, func)
+        if self._loops[loopName] then
+            warn(loopName .. " is already bound!")
+            return
+        end
+        self._loops[loopName] = game:GetService("RunService").Heartbeat:Connect(func)
+    end
+
+    function RunLoops:UnbindFromHeartbeat(loopName)
+        if self._loops[loopName] then
+            self._loops[loopName]:Disconnect()
+            self._loops[loopName] = nil
+        else
+            warn(loopName .. " was not bound!")
+        end
+    end
+
+    local EventSys = {}
+    EventSys._events = {}
+
+    function EventSys:Connect(evtName, func)
+        if not self._events[evtName] then
+            self._events[evtName] = {}
+        end
+        table.insert(self._events[evtName], func)
+    end
+
+    function EventSys:Fire(evtName, ...)
+        if self._events[evtName] then
+            for _, func in ipairs(self._events[evtName]) do
+                func(...)
+            end
+        end
+    end
+
+    function EventSys:Disconnect(evtName)
+        if self._events[evtName] then
+            self._events[evtName] = nil
+        else
+            warn(evtName .. " had no bound events to disconnect!")
+        end
+    end
+
+    local AmongUsMode = {Enabled = false}
+    local AmongUsOthers = {Enabled = false}
+    local TransformedPlrs = {}
+    local Mode = {Value = "Among Us", Ver = "v3.0"}
+
+    local function getTorso(plr)
+        local hum = plr.Character:WaitForChild("Humanoid", 10)
+        if hum then
+            local torsoPart = hum.RigType == Enum.HumanoidRigType.R6 and "Torso" or "UpperTorso"
+            return plr.Character:FindFirstChild(torsoPart)
+        end
+        return nil
+    end
+
+    local function applyAmongUsSkin(plr)
+        local meshId = "http://www.roblox.com/asset/?id=6235963214"
+        local texId = "http://www.roblox.com/asset/?id=6235963270"
+        local torso = getTorso(plr)
+
+        if torso then
+            local amogusPart = Instance.new("Part")
+            local mesh = Instance.new("SpecialMesh")
+            local weld = Instance.new("Weld")
+
+            amogusPart.Name = "AmogusSkin"
+            amogusPart.CanCollide = false
+            amogusPart.Anchored = false
+            amogusPart.Parent = plr.Character
+
+            mesh.MeshId = meshId
+            mesh.TextureId = texId
+            mesh.Offset = Vector3.new(0, -0.3, 0)
+            mesh.Scale = Vector3.new(0.11, 0.11, 0.11)
+            mesh.Parent = amogusPart
+
+            weld.Part0 = amogusPart
+            weld.Part1 = torso
+            weld.Parent = amogusPart
+
+            TransformedPlrs[plr.UserId] = true
+        end
+    end
+
+    local function resetPlr(plr)
+        if plr.Character and TransformedPlrs[plr.UserId] then
+            local amogusSkin = plr.Character:FindFirstChild("AmogusSkin")
+            if amogusSkin then
+                amogusSkin:Destroy()
+            end
+
+            for _, part in ipairs(plr.Character:GetChildren()) do
+                if part:IsA("MeshPart") or part:IsA("Part") then
+                    part.Transparency = 0
+                elseif part:IsA("Accessory") then
+                    part.Handle.Transparency = 0
+                end
+            end
+
+            TransformedPlrs[plr.UserId] = nil
+        end
+    end
+
+    local function hideCharParts(plr)
+        for _, part in ipairs(plr.Character:GetChildren()) do
+            if part:IsA("MeshPart") or (part:IsA("Part") and part.Name ~= "AmogusSkin") then
+                part.Transparency = 1
+            elseif part:IsA("Accessory") and not string.match(part.Name, "sword|block|pickaxe|bow|axe|fireball|cannon|shears") then
+                part.Handle.Transparency = 1
+            end
+        end
+    end
+
+    local function isPlrAlive(plr)
+        return plr.Character and plr.Character:FindFirstChild("Humanoid") and plr.Character.Humanoid.Health > 0
+    end
+
+    local function resetAllPlrs()
+        for _, plr in ipairs(game.Players:GetPlayers()) do
+            EventSys:Fire("ResetPlr", plr)
+        end
+    end
+
+    EventSys:Connect("TransformPlr", function(plr)
+        if isPlrAlive(plr) and (not TransformedPlrs[plr.UserId]) then
+            applyAmongUsSkin(plr)
+            hideCharParts(plr)
+        end
+    end)
+
+    EventSys:Connect("ResetPlr", function(plr)
+        resetPlr(plr)
+    end)
+
+    AmongUsMode = vape.Categories.Render:CreateModule({
+        Name = "AmongusChanger",
+        Function = function(call)
+            if call then
+				EventSys:Connect("TransformPlr", function(plr)
+					if isPlrAlive(plr) and (not TransformedPlrs[plr.UserId]) then
+						applyAmongUsSkin(plr)
+						hideCharParts(plr)
+					end
+				end)
+				EventSys:Connect("ResetPlr", function(plr)
+					resetPlr(plr)
+				end)
+                RunLoops:BindToHeartbeat("AmongUsLoop", function()
+                    for _, plr in pairs(game.Players:GetPlayers()) do
+						if plr ~= game.Players.LocalPlayer then
+							if AmongUsOthers.Enabled then EventSys:Fire("TransformPlr", plr) end
+						else EventSys:Fire("TransformPlr", plr) end
+                    end
+                end)
+            else
+                RunLoops:UnbindFromHeartbeat("AmongUsLoop")
+                resetAllPlrs()
+                EventSys:Disconnect("TransformPlr")
+                EventSys:Disconnect("ResetPlr")
+            end
+        end,
+        Tooltip = "Transform yourself into an Among Us character.",
+        ExtraText = function() return "sussy" end
+    })
+
+    AmongUsOthers = AmongUsMode:CreateToggle({
+        Name = "AmongUsOthers",
+        Function = function(call)
+            if AmongUsMode.Enabled then
+                AmongUsMode.Restart()
+            end
+        end
+    })
+end)--]]
 
 run(function()
 	local LightingTheme = {Enabled = false}
@@ -1537,7 +2325,7 @@ run(function()
 	}
 	LightingTheme = vape.Categories.World:CreateModule({
 		Name = "LightingTheme",
-		HoverText = "Add a whole new look to your game.",
+		Tooltip = "Add a whole new look to your game.",
 		ExtraText = function() return LightingThemeType.Value end,
 		Function = function(callback) 
 			if callback then 
@@ -1582,12 +2370,102 @@ run(function()
 		List = dumptable(themetable, 1),
 		Function = function()
 			if LightingTheme.Enabled then 
-				LightingTheme.ToggleButton(false)
-				LightingTheme.ToggleButton(false)
+				LightingTheme:Toggle(false)
+				LightingTheme:Toggle(false)
 			end
 		end
 	})
 end)
+
+--[[run(function()
+	local Anime = GuiLibrary.CreateCustomWindow({
+		Name = "AnimeImages",
+		Icon = "vape/assets/TargetInfoIcon1.png",
+		IconSize = 16
+	})
+	local AnimeSelection = {Value = "AnimeWaifu1"}
+	local Anime_table = {
+		["SHREKDADDY"] = {
+			["ID"] = 131192839895812,
+			["Size"] = UDim2.new(0, 150, 0, 200)
+		},
+		["SHREKMOMMY"] = {
+			["ID"] = 96690292388820,
+			["Size"] = UDim2.new(0, 150, 0, 200)
+		},
+		["AnimeWaifu1"] = 18498989965,
+		["Anime2"] = {
+			["ID"] = 18499238992,
+			["Size"] = UDim2.new(0, 150, 0, 200)
+		},
+		["Anime3"] = {
+			["ID"] = 18499361548,
+			["Size"] = UDim2.new(0, 150, 0, 200)
+		},
+		["Anime4"] = 18499384179,
+		["Anime5"] = 18499402527
+	}
+	local default_table = {
+		["Size"] = UDim2.new(0, 100, 0, 200),
+		["Position"] = UDim2.new(0.17, 0, 0, 0)
+	}
+	local anime_image_label
+
+	local chosenid = Anime_table[AnimeSelection.Value]
+
+	local b = Instance.new("ImageLabel")
+	b.Parent = Anime.GetCustomChildren()
+	b.BackgroundTransparency = 1
+
+	--- CUSTOM ---
+	if type(Anime_table[AnimeSelection.Value]) == "table" then
+		b.Image = "rbxassetid://"..tostring(chosenid["ID"])
+		--b.Position = UDim2.new(0.9, 0, 0, 0)
+		b.Size = UDim2.new(0, 100, 0, 200)
+		for i,v in pairs(chosenid) do
+			if i ~= "ID" then
+				b[i] = chosenid[i]
+			end
+		end
+	else
+		b.Image = "rbxassetid://"..tostring(chosenid)
+		b.Position = UDim2.new(0.17, 0, 0, 0)
+		b.Size = UDim2.new(0, 100, 0, 200)
+	end
+
+	anime_image_label = b
+	local options = {}
+	for i,v in pairs(Anime_table) do table.insert(options, i) end
+	AnimeSelection = Anime:CreateDropdown({
+		Name = "Selection",
+		Function = function()
+			if anime_image_label then 
+				local chosenid = Anime_table[AnimeSelection.Value]
+				if type(Anime_table[AnimeSelection.Value]) == "table" then
+					anime_image_label.Image = "rbxassetid://"..tostring(chosenid["ID"])
+					anime_image_label.Position = UDim2.new(0.17, 0, 0, 0)
+					anime_image_label.Size = UDim2.new(0, 100, 0, 200)
+					for i,v in pairs(chosenid) do
+						if i ~= "ID" then
+							anime_image_label[i] = chosenid[i]
+						end
+					end
+				else
+					anime_image_label.Image = "rbxassetid://"..tostring(chosenid)
+					anime_image_label.Position = UDim2.new(0.17, 0, 0, 0)
+					anime_image_label.Size = UDim2.new(0, 100, 0, 200)
+				end
+			end
+		end,
+		List = options
+	})
+	GUI.CreateCustomToggle({
+		Name = "AnimeImages",
+		Icon = "vape/assets/TargetInfoIcon2.png",
+		Function = function(callback) Anime.SetVisible(callback) end,
+		Priority = 1
+	})
+end)--]]
 
 run(function()
     local CharacterEditor = {Enabled = true}
@@ -1625,7 +2503,7 @@ run(function()
             end
         end
     })
-    CharacterEditor.Restart = function() if CharacterEditor.Enabled then CharacterEditor.ToggleButton(false); CharacterEditor.ToggleButton(false) end end
+    CharacterEditor.Restart = function() if CharacterEditor.Enabled then CharacterEditor:Toggle(false); CharacterEditor:Toggle(false) end end
     ExcludeTable = CharacterEditor:CreateTextList({
         Name = "Exclude character parts",
         TempText = "Example: Cape",
