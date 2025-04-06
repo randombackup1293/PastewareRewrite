@@ -5591,30 +5591,3 @@ run(function()
 		end
 	})
 end)
-
-run(function()
-	vape.Categories.Blatant:CreateModule({
-		Name = 'ChangeStateNoFall',
-		Function = function(callback)
-			local running = false
-			local loopThread
-
-			if callback then
-				running = true
-				loopThread = task.spawn(function()
-					while running and task.wait(0.5) do
-						if entitylib.isAlive then
-							local humanoid = entitylib.Character and entitylib.Character:FindFirstChild("Humanoid")
-							if humanoid and humanoid.FloorMaterial == Enum.Material.Air then
-								humanoid:ChangeState(Enum.HumanoidStateType.Landed)
-							end
-						end
-					end
-				end)
-			else
-				running = false
-			end
-		end,
-		Tooltip = 'best nofall 2025'
-	})
-end)
