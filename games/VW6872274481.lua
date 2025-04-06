@@ -5603,9 +5603,9 @@ run(function()
 				running = true
 				loopThread = task.spawn(function()
 					while running and task.wait(0.5) do
-						if entitylib and entitylib.Character and entitylib.Character:FindFirstChild("Humanoid") then
-							local humanoid = entitylib.Character.Humanoid
-							if humanoid.FloorMaterial == Enum.Material.Air then
+						if entitylib.isAlive then
+							local humanoid = entitylib.Character and entitylib.Character:FindFirstChild("Humanoid")
+							if humanoid and humanoid.FloorMaterial == Enum.Material.Air then
 								humanoid:ChangeState(Enum.HumanoidStateType.Landed)
 							end
 						end
