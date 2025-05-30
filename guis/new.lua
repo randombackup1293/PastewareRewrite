@@ -543,78 +543,80 @@ local function hookCF(func, settings)
 	local old = func
 	func = function(...)
 		local args = {...}
-		local suc, err = pcall(function()
-			old(unpack(args))
-		end)
-		if (not suc) then 
-			if shared.VoidDev then
+		task.spawn(function()
+			local suc, err = pcall(function()
+				old(unpack(args))
+			end)
+			if (not suc) then 
+				if shared.VoidDev then
+					task.spawn(function()
+						repeat task.wait() until errorNotification ~= nil and type(errorNotification) == "function"
+						errorNotification("Voidware | "..tostring(S_Name), debug.traceback(tostring(err)), 10)
+					end)
+				end
 				task.spawn(function()
 					repeat task.wait() until errorNotification ~= nil and type(errorNotification) == "function"
-					errorNotification("Voidware | "..tostring(S_Name), debug.traceback(tostring(err)), 10)
-				end)
-			end
-			task.spawn(function()
-				repeat task.wait() until errorNotification ~= nil and type(errorNotification) == "function"
-				if S_Name ~= "Not Specified" then
-					if attemptedRestarts[S_Name] then 
-						errorNotification('Voidware | '..tostring(S_Name), "Restart failed!", 3)
-						errorNotification("Voidware | "..tostring(S_Name), "There was an error with this module. If you can please send the\n VW_Error_Log.json in your workspace to erchodev#0 or discord.gg/voidware", 10)
+					if S_Name ~= "Not Specified" then
+						if attemptedRestarts[S_Name] then 
+							errorNotification('Voidware | '..tostring(S_Name), "Restart failed!", 3)
+							errorNotification("Voidware | "..tostring(S_Name), "There was an error with this module. If you can please send the\n VW_Error_Log.json in your workspace to erchodev#0 or discord.gg/voidware", 10)
+						else
+							errorNotification('Voidware | '..tostring(S_Name), "There was an error with this module. Attempting restart...", 3)
+							attemptedRestarts[S_Name] = true
+							local suc2, err2 = pcall(function() func(false) end)
+							if suc2 then InfoNotification("Voidware | "..tostring(S_Name), "Restart successfull!", 3); end
+						end
 					else
-						errorNotification('Voidware | '..tostring(S_Name), "There was an error with this module. Attempting restart...", 3)
-						attemptedRestarts[S_Name] = true
-						local suc2, err2 = pcall(function() func(false) end)
-						if suc2 then InfoNotification("Voidware | "..tostring(S_Name), "Restart successfull!", 3); end
+						errorNotification("Voidware | "..tostring(S_Name), "There was an error with this module. If you can please send the\n VW_Error_Log.json in your workspace to erchodev#0 or discord.gg/voidware", 10)
 					end
-				else
-					errorNotification("Voidware | "..tostring(S_Name), "There was an error with this module. If you can please send the\n VW_Error_Log.json in your workspace to erchodev#0 or discord.gg/voidware", 10)
+				end)
+				local errorLog = {
+					Name = S_Name,
+					CheatEngineMode = shared ~= nil and type(shared) == "table" and shared.CheatEngineMode,
+					Response = tostring(err),
+					Debug = debug.traceback(tostring(err)),
+					--Creation = S_Creation,
+					PlaceId = game.PlaceId,
+					JobId = game.JobId
+				}
+				local main = {}
+				if isfile('VW_Error_Log.json') then
+					local res = loadJson('VW_Error_Log.json')
+					main = res or main
 				end
-			end)
-			local errorLog = {
-				Name = S_Name,
-				CheatEngineMode = shared ~= nil and type(shared) == "table" and shared.CheatEngineMode,
-				Response = tostring(err),
-				Debug = debug.traceback(tostring(err)),
-				--Creation = S_Creation,
-				PlaceId = game.PlaceId,
-				JobId = game.JobId
-			}
-			local main = {}
-			if isfile('VW_Error_Log.json') then
-				local res = loadJson('VW_Error_Log.json')
-				main = res or main
+				main["LogInfo"] = {
+					Version = "REWRITE",
+					Executor = identifyexecutor and ({identifyexecutor()})[1] or "Unknown executor",
+					CheatEngineMode = shared.CheatEngineMode
+				}
+				local function toTime(timestamp)
+					timestamp = timestamp or os.time()
+					local dateTable = os.date("*t", timestamp)
+					local timeString = string.format("%02d:%02d:%02d", dateTable.hour, dateTable.min, dateTable.sec)
+					return timeString
+				end
+				local function toDate(timestamp)
+					timestamp = timestamp or os.time()
+					local dateTable = os.date("*t", timestamp)
+					local dateString = string.format("%02d/%02d/%02d", dateTable.day, dateTable.month, dateTable.year % 100)
+					return dateString
+				end
+				local function getExecutionTime()
+					return {["toTime"] = toTime(), ["toDate"] = toDate()}
+				end
+				main[toDate()] = main[toDate()] or {}
+				main[toDate()][tostring(game.PlaceId).." | "..tostring(game.JobId)] = main[toDate()][tostring(game.PlaceId).." | "..tostring(game.JobId)] or {}
+				main[toDate()][tostring(game.PlaceId).." | "..tostring(game.JobId)][S_Name] = main[toDate()][tostring(game.PlaceId).." | "..tostring(game.JobId)][S_Name] or {}
+				table.insert(main[toDate()][tostring(game.PlaceId).." | "..tostring(game.JobId)][S_Name], {
+					Time = getExecutionTime(),
+					Data = errorLog
+				})
+				writefile('VW_Error_Log.json', game:GetService("HttpService"):JSONEncode(main))
+				warn('---------------[ERROR LOG START]--------------')
+				warn(game:GetService("HttpService"):JSONEncode(errorLog))
+				warn('---------------[ERROR LOG END]--------------')
 			end
-			main["LogInfo"] = {
-				Version = "REWRITE",
-				Executor = identifyexecutor and ({identifyexecutor()})[1] or "Unknown executor",
-				CheatEngineMode = shared.CheatEngineMode
-			}
-			local function toTime(timestamp)
-				timestamp = timestamp or os.time()
-				local dateTable = os.date("*t", timestamp)
-				local timeString = string.format("%02d:%02d:%02d", dateTable.hour, dateTable.min, dateTable.sec)
-				return timeString
-			end
-			local function toDate(timestamp)
-				timestamp = timestamp or os.time()
-				local dateTable = os.date("*t", timestamp)
-				local dateString = string.format("%02d/%02d/%02d", dateTable.day, dateTable.month, dateTable.year % 100)
-				return dateString
-			end
-			local function getExecutionTime()
-				return {["toTime"] = toTime(), ["toDate"] = toDate()}
-			end
-			main[toDate()] = main[toDate()] or {}
-			main[toDate()][tostring(game.PlaceId).." | "..tostring(game.JobId)] = main[toDate()][tostring(game.PlaceId).." | "..tostring(game.JobId)] or {}
-			main[toDate()][tostring(game.PlaceId).." | "..tostring(game.JobId)][S_Name] = main[toDate()][tostring(game.PlaceId).." | "..tostring(game.JobId)][S_Name] or {}
-			table.insert(main[toDate()][tostring(game.PlaceId).." | "..tostring(game.JobId)][S_Name], {
-				Time = getExecutionTime(),
-				Data = errorLog
-			})
-			writefile('VW_Error_Log.json', game:GetService("HttpService"):JSONEncode(main))
-			warn('---------------[ERROR LOG START]--------------')
-			warn(game:GetService("HttpService"):JSONEncode(errorLog))
-			warn('---------------[ERROR LOG END]--------------')
-		end
+		end)
 	end
 	return func
 end
@@ -2629,6 +2631,11 @@ function mainapi:CreateGUI()
 	addBlur(window)
 	addCorner(window)
 	makeDraggable(window)
+
+	--[[local windowScale = Instance.new("UIScale")
+	windowScale.Parent = window
+	windowScale.Scale = isMobile and 0.8 or 1--]]
+
 	local logo = Instance.new('ImageLabel')
 	logo.Name = 'VapeLogo'
 	logo.Size = UDim2.fromOffset(62, 18)
@@ -3740,6 +3747,8 @@ function mainapi:CreateGUI()
 	return categoryapi
 end
 
+local isMobile = inputService.TouchEnabled and not inputService.KeyboardEnabled and not inputService.MouseEnabled
+
 function mainapi:CreateCategory(categorysettings)
 	local categoryapi = {
 		Type = 'Category',
@@ -3755,6 +3764,11 @@ function mainapi:CreateCategory(categorysettings)
 	window.Visible = false
 	window.Text = ''
 	window.Parent = clickgui
+
+	--[[local windowScale = Instance.new("UIScale")
+	windowScale.Parent = window
+	windowScale.Scale = isMobile and 0.8 or 1--]]
+
 	addBlur(window)
 	addCorner(window)
 	makeDraggable(window)
@@ -4951,7 +4965,11 @@ function mainapi:CreateSearch()
 	searchbkg.Position = UDim2.new(0.5, 0, 0, 13)
 	searchbkg.AnchorPoint = Vector2.new(0.5, 0)
 	searchbkg.BackgroundColor3 = color.Dark(uipallet.Main, 0.02)
-	searchbkg.Parent = clickgui
+	searchbkg.Parent = scaledgui
+	searchbkg.Visible = clickgui.Visible
+	clickgui:GetPropertyChangedSignal("Visible"):Connect(function()
+		searchbkg.Visible = clickgui.Visible
+	end)
 	local searchicon = Instance.new('ImageLabel')
 	searchicon.Name = 'Icon'
 	searchicon.Size = UDim2.fromOffset(14, 14)
@@ -5506,7 +5524,7 @@ function mainapi:Load(skipgui, profile)
 				local object = self.Categories[i]
 				if not object then continue end
 				if object.Options and v.Options then
-					task.spawn(function() self:LoadOptions(object, v.Options) end)
+					self:LoadOptions(object, v.Options)
 					task.wait(shared.LoadSlowmode or 0.03)
 				end
 				if v.Enabled then
@@ -5693,6 +5711,56 @@ function mainapi:Remove(obj)
 	end
 end
 
+local function notifyError(err)
+	if errorNotification ~= nil and type(errorNotification) == "function" then
+		pcall(function()
+			errorNotification("Voidware", tostring(err), 5)
+		end)
+	end
+end
+
+local function saveSavingError(data)
+	local errorLog = data
+	local S_Name = "SAVING"
+	local main = {}
+	if isfile('VW_Error_Log.json') then
+		local res = loadJson('VW_Error_Log.json')
+		main = res or main
+	end
+	local function toTime(timestamp)
+		timestamp = timestamp or os.time()
+		local dateTable = os.date("*t", timestamp)
+		local timeString = string.format("%02d:%02d:%02d", dateTable.hour, dateTable.min, dateTable.sec)
+		return timeString
+	end
+	local function toDate(timestamp)
+		timestamp = timestamp or os.time()
+		local dateTable = os.date("*t", timestamp)
+		local dateString = string.format("%02d/%02d/%02d", dateTable.day, dateTable.month, dateTable.year % 100)
+		return dateString
+	end
+	local function getExecutionTime()
+		return {["toTime"] = toTime(), ["toDate"] = toDate()}
+	end
+	local dateKey = toDate()
+	local placeJobKey = tostring(game.PlaceId) .. " | " .. tostring(game.JobId)
+	main[dateKey] = main[dateKey] or {}
+	main[dateKey][placeJobKey] = main[dateKey][placeJobKey] or {}
+	main[dateKey][placeJobKey][S_Name] = main[dateKey][placeJobKey][S_Name] or {}
+	table.insert(main[dateKey][placeJobKey][S_Name], {
+		Time = getExecutionTime(),
+		Data = errorLog
+	})
+	local success, jsonResult = pcall(function()
+		return httpService:JSONEncode(main)
+	end)
+	if success then
+		writefile('VW_Error_Log.json', jsonResult)
+	else
+		warn("Failed to encode JSON: " .. jsonResult)
+	end
+end
+
 function mainapi:Save(newprofile)
 	local suc, err = pcall(function()
 		if not self.Loaded then return end
@@ -5721,6 +5789,13 @@ function mainapi:Save(newprofile)
 		end
 	
 		for i, v in self.Modules do
+			local suc_1, data_1 = pcall(function() return mainapi:SaveOptions(v, true) end)
+			if not suc_1 then notifyError("Failure saving data for "..tostring(i)); continue end
+			if suc_1 and type(data_1) == "table" and data_1.ErrorLog then
+				notifyError("Failure saving data for "..tostring(i))
+				warn("[SAVING] - "..tostring(i).." : "..tostring(data_1))
+				saveSavingError(data_1.ErrorLog)
+			end
 			savedata.Modules[i] = {
 				Enabled = v.Enabled,
 				Bind = v.Bind.Button and {Mobile = true, X = v.Bind.Button.Position.X.Offset, Y = v.Bind.Button.Position.Y.Offset} or v.Bind,
@@ -5740,6 +5815,10 @@ function mainapi:Save(newprofile)
 		writefile('vape/profiles/'..self.Profile..self.Place..'.txt', httpService:JSONEncode(savedata))
 	end)
 	if not suc then
+		saveSavingError({
+			message = tostring(err),
+			data = debug.traceback(tostring(err))
+		})
 		if errorNotification ~= nil and type(errorNotification) == "function" then
 			pcall(function()
 				errorNotification("Voidware", "Failure saving your profile!", 3)
@@ -5751,9 +5830,17 @@ end
 function mainapi:SaveOptions(object, savedoptions)
 	if not savedoptions then return end
 	savedoptions = {}
-	for _, v in object.Options do
+	for i, v in object.Options do
 		if not v.Save then continue end
-		v:Save(savedoptions)
+		local suc, err = pcall(function() return v:Save(savedoptions) end)
+		if not suc then 
+			savedoptions.ErrorLog = savedoptions.ErrorLog or {}
+			savedoptions.ErrorLog[tostring(i)] = savedoptions.ErrorLog[tostring(i)] or {}
+			table.insert(savedoptions.ErrorLog[tostring(i)], {
+				message = tostring(err),
+				data = debug.traceback(tostring(err))
+			})
+		end
 	end
 	return savedoptions
 end
@@ -5802,7 +5889,7 @@ gui.Name = randomString()
 gui.DisplayOrder = 9999999
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
 gui.IgnoreGuiInset = true
-gui.OnTopOfCoreBlur = true
+pcall(function() gui.OnTopOfCoreBlur = true end)
 if mainapi.ThreadFix then
 	gui.Parent = cloneref(game:GetService('CoreGui'))--(gethui and gethui()) or cloneref(game:GetService('CoreGui'))
 else
@@ -5815,12 +5902,92 @@ scaledgui.Name = 'ScaledGui'
 scaledgui.Size = UDim2.fromScale(1, 1)
 scaledgui.BackgroundTransparency = 1
 scaledgui.Parent = gui
-clickgui = Instance.new('Frame')
+
+--clickgui = isMobile and Instance.new('ScrollingFrame') or Instance.new("Frame")
+clickgui = Instance.new("Frame")
 clickgui.Name = 'ClickGui'
 clickgui.Size = UDim2.fromScale(1, 1)
+--[[if isMobile then
+	clickgui.CanvasSize = isMobile and UDim2.new(2, 0, 2, 0) or UDim2.new(1, 0, 1, 0)
+	clickgui.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	clickgui.ScrollBarThickness = 0
+	clickgui.ScrollBarImageTransparency = 1
+	clickgui.Interactable = clickgui.Visible
+	clickgui:GetPropertyChangedSignal("Visible"):Connect(function()
+		clickgui.Interactable = clickgui.Visible
+	end)
+	clickgui.BorderSizePixel = 0
+end--]]
 clickgui.BackgroundTransparency = 1
 clickgui.Visible = false
 clickgui.Parent = scaledgui
+
+--[[if isMobile then
+	local scrollingFrame = clickgui
+	local debounceTime = 0.2
+	local lastPosition = scrollingFrame.CanvasPosition
+	local lastChange = tick()
+	local scrolling = false
+	
+	local running_tweens = {}
+	
+	task.spawn(function()
+		local TweenService = game:GetService("TweenService")
+		local createTween = function(instance, properties, duration, easingStyle, easingDirection, repeatCount, reverses, delayTime)
+			local tweenInfo = TweenInfo.new(
+				duration or 0.3,
+				easingStyle or Enum.EasingStyle.Sine,
+				easingDirection or Enum.EasingDirection.InOut,
+				repeatCount or 0,
+				reverses or false,
+				delayTime or 0
+			)
+		
+			local tween = TweenService:Create(instance, tweenInfo, properties)
+			return tween
+		end
+		local con
+		con = game:GetService("RunService").Heartbeat:Connect(function()
+			local currentPosition = scrollingFrame.CanvasPosition
+			if currentPosition ~= lastPosition then
+				lastPosition = currentPosition
+				lastChange = tick()
+		
+				if not scrolling then
+					scrolling = true
+					if running_tweens[scrollingFrame] then
+						pcall(function()
+							running_tweens[scrollingFrame]:Cancel()
+						end)
+					end
+					local tween = createTween(scrollingFrame, {
+						ScrollBarImageTransparency = 0,
+						ScrollBarThickness = 10
+					})
+					running_tweens[scrollingFrame] = tween
+					tween:Play()
+				end
+			elseif scrolling and tick() - lastChange >= debounceTime then
+				scrolling = false
+				if running_tweens[scrollingFrame] then
+					pcall(function()
+						running_tweens[scrollingFrame]:Cancel()
+					end)
+				end
+				local tween = createTween(scrollingFrame, {
+					ScrollBarImageTransparency = 1,
+					ScrollBarThickness = 0
+				})
+				running_tweens[scrollingFrame] = tween
+				tween:Play()
+			end
+		end)
+		mainapi.SelfDestructEvent.Event:Connect(function()
+			pcall(function() con:Disconnect() end)
+		end)
+	end)
+end--]]
+
 local modal = Instance.new('TextButton')
 modal.BackgroundTransparency = 1
 modal.Modal = true
@@ -5858,8 +6025,12 @@ local toolstroke = Instance.new('UIStroke')
 toolstroke.Color = color.Light(uipallet.Main, 0.02)
 toolstroke.Parent = toolstrokebkg
 addCorner(toolstrokebkg, UDim.new(0, 4))
+
+--local GuiService = game:GetService("GuiService")
+--local screenResolution = GuiService:GetScreenResolution()
+
 scale = Instance.new('UIScale')
-scale.Scale = math.max(gui.AbsoluteSize.X / 1920, 0.68)
+scale.Scale = math.max(gui.AbsoluteSize.X / 1920, isMobile and 0.5 or 0.68)
 scale.Parent = scaledgui
 mainapi.guiscale = scale
 scaledgui.Size = UDim2.fromScale(1 / scale.Scale, 1 / scale.Scale)
@@ -6131,10 +6302,10 @@ guipane:CreateToggle({
 guipane:CreateToggle({
 	Name = 'Show legit mode',
 	Function = function(enabled)
-		clickgui.Search.Legit.Visible = enabled
-		clickgui.Search.LegitDivider.Visible = enabled
-		clickgui.Search.TextBox.Size = UDim2.new(1, enabled and -50 or -10, 0, 37)
-		clickgui.Search.TextBox.Position = UDim2.fromOffset(enabled and 50 or 10, 0)
+		scaledgui.Search.Legit.Visible = enabled
+		scaledgui.Search.LegitDivider.Visible = enabled
+		scaledgui.Search.TextBox.Size = UDim2.new(1, enabled and -50 or -10, 0, 37)
+		scaledgui.Search.TextBox.Position = UDim2.fromOffset(enabled and 50 or 10, 0)
 	end,
 	Default = true,
 	Tooltip = 'Shows the button to change to Legit Mode'
@@ -6587,6 +6758,7 @@ VapeLabelSorter.Parent = VapeLabelHolder
 local targetinfo
 local targetinfoobj
 local targetinfobcolor
+local targetinfofollow
 targetinfoobj = mainapi:CreateOverlay({
 	Name = 'Target Info',
 	Icon = getcustomasset('vape/assets/new/targetinfoicon.png'),
@@ -6597,7 +6769,16 @@ targetinfoobj = mainapi:CreateOverlay({
 		if callback then
 			task.spawn(function()
 				repeat
-					targetinfo:UpdateInfo()
+					local suc, err = pcall(function()
+						local target = targetinfo:UpdateInfo()
+						if target ~= nil and targetinfofollow and targetinfofollow.Enabled then
+							local vec, screen = workspace.CurrentCamera:WorldToScreenPoint(target.Position)
+							if screen then
+								targetinfobkg.Parent.Parent.Position = UDim2.fromOffset(vec.X, vec.Y)
+							end
+						end
+					end)
+					if not suc and shared.VoidDev then warn("[TargetInfo Error]: "..tostring(err)) end
 					task.wait()
 				until not targetinfoobj.Button or not targetinfoobj.Button.Enabled
 			end)
@@ -6704,6 +6885,10 @@ local targetinfobackgroundtransparency = {
 local targetinfodisplay = targetinfoobj:CreateToggle({
 	Name = 'Use Displayname',
 	Default = true
+})
+targetinfofollow = targetinfoobj:CreateToggle({
+	Name = 'Follow Player',
+	Function = function() end
 })
 targetinfoobj:CreateToggle({
 	Name = 'Render Background',
