@@ -1,5 +1,5 @@
 repeat task.wait() until game:IsLoaded()
-if shared.vape then shared.vape:Uninject() end
+if shared.vape then shared.vape:Uninject(); shared.VapeExecuted = false end
 
 if identifyexecutor and ({identifyexecutor()})[1] == 'Argon' then
 	getgenv().setthreadidentity = nil
@@ -101,6 +101,9 @@ local function finishLoading()
 			if shared.VoidDev then
 				teleportScript = 'shared.VoidDev = true\n'..teleportScript
 			end
+			if shared.CustomCommit then
+				teleportScript = "shared.CustomCommit = '"..shared.CustomCommit.."'\n"..teleportScript
+			end
 			if shared.ClosetCheatMode then
 				teleportScript = 'shared.ClosetCheatMode = true\n'..teleportScript
 			end
@@ -118,6 +121,9 @@ local function finishLoading()
 			end
 			if shared.NoAutoExecute then
 				teleportScript = 'shared.NoAutoExecute = true\n'..teleportScript
+			end
+			if shared.CheatEngineMode then
+				teleportScript = 'shared.CheatEngineMode = true\n'..teleportScript
 			end
 			if shared.TeleportExploitAutowinEnabled then
 				teleportScript = 'shared.TeleportExploitAutowinEnabled = true\n'..teleportScript
@@ -159,6 +165,7 @@ shared.vape = vape
 getgenv().vape = vape
 getgenv().GuiLibrary = vape
 shared.GuiLibrary = vape
+shared.VapeExecuted = true
 
 getgenv().InfoNotification = function(title, msg, dur)
 	warn('info', tostring(title), tostring(msg), tostring(dur))
@@ -172,6 +179,18 @@ getgenv().errorNotification = function(title, msg, dur)
 	warn("error", tostring(title), tostring(msg), tostring(dur))
 	vape:CreateNotification(title, msg, dur, 'alert')
 end
+if shared.CheatEngineMode then
+	InfoNotification("Voidware | CheatEngineMode", "Due to your executor not supporting some functions \n some modules might be missing!", 5) 
+end
+--[[pcall(function()
+	if (not isfile('vape/discord2.txt')) then
+		task.spawn(function() InfoNotification("Whitelist", "Was whitelisted and your whitelist dissapeared? Join back the discord server :D       ", 30) end)
+		task.spawn(function() InfoNotification("Discord", "New server! discord.gg/voidware!              ", 30) end)
+		task.spawn(function() warningNotification("Discord", "New server! discord.gg/voidware!             ", 30) end)
+		task.spawn(function() errorNotification("Discord", "New server! discord.gg/voidware!              ", 30) end)
+		writefile('vape/discord2.txt', '')
+	end
+end)--]]
 
 local bedwarsID = {
 	game = {6872274481, 8444591321, 8560631822},
