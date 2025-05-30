@@ -89,7 +89,7 @@ local store = {
 	matchState = 1,
 	matchStateChanged = tick(),
 	pots = {},
-	queueType = "idk",--"bedwars_test",
+	queueType = "bedwars_test",
 	scythe = tick(),
 	statistics = {
 		beds = 0,
@@ -388,6 +388,7 @@ function bedwars.ClientStoreHandler:dispatch(tbl)
 end
 bedwars.ItemHandler = {}
 bedwars.ItemHandler.ItemMeta = decode(VoidwareFunctions.fetchCheatEngineSupportFile("ItemMeta.json"))
+pcall(function() bedwars.QueueMeta = decode(VoidwareFunctions.fetchCheatEngineSupportFile("QueueMeta.json")) end)
 --decode(readfile("vape/CheatEngine/ItemMeta.json"))
 bedwars.ItemHandler.getItemMeta = function(item)
     for i,v in pairs(bedwars.ItemHandler.ItemMeta) do
@@ -447,14 +448,18 @@ function bedwars.BlockController:isBlockBreakable() return true end
 function bedwars.BlockController:getBlockPosition(block)
     local RayParams = RaycastParams.new()
     RayParams.FilterType = Enum.RaycastFilterType.Exclude
-    RayParams.FilterDescendantsInstances = {game:GetService("Players").LocalPlayer.Character}
+	local ignoreTable = bedwars.QueryUtil.queryIgnored
+	if lplr.Character then
+		table.insert(ignoreTable, lplr.Character)
+	end
+    RayParams.FilterDescendantsInstances = ignoreTable
     RayParams.IgnoreWater = true
     local RayRes = game.Workspace:Raycast(type(block) == "userdata" and block.Position or block + Vector3.new(0, 30, 0), Vector3.new(0, -35, 0), RayParams)
     local targetBlock
     if RayRes then
         targetBlock = RayRes.Instance or type(block) == "userdata" and black or nil		
         local function resolvePos(pos) return Vector3.new(math.round(pos.X / 3), math.round(pos.Y / 3), math.round(pos.Z / 3)) end
-        return resolvePos(targetBlock.Position)
+        return resolvePos(targetBlock.Position), targetBlock
     else
         return false
     end
@@ -486,6 +491,7 @@ end
 local function getBestTool(block)
 	local tool = nil
 	local blockmeta = bedwars.ItemTable[block]
+	if not blockmeta then return end
 	local blockType = blockmeta.block and blockmeta.block.breakType
 	if blockType then
 		local best = 0
@@ -501,6 +507,7 @@ local function getBestTool(block)
 end
 function bedwars.BlockController:calculateBlockDamage(plr, posTbl)
 	local tool = getBestTool(tostring(posTbl.block))
+	if not tool then return 0 end
 	local tooldmg = bedwars.ItemTable[tostring(tool.itemType)].breakBlock
 	if table.find(tooldmg, tostring(tool)) then tooldmg = tooldmg[tostring(tool)] else
 		for i,v in pairs(tooldmg) do tooldmg = v break end
@@ -545,6 +552,7 @@ local function getPlacedBlock(pos, strict)
     local centerParts = game.Workspace:FindPartsInRegion3(centerRegion, nil, math.huge)
     for _, part in pairs(centerParts) do
         if part and part.ClassName == "Part" and part.Parent then
+			if bedwars.QueryUtil:isQueryIgnored(part) then continue end
             if strict then
                 if part.Parent.Name == 'Blocks' and part.Parent.ClassName == "Folder" then
                     table.insert(nearbyParts, part)
@@ -562,6 +570,7 @@ local function getPlacedBlock(pos, strict)
         
         for _, part in pairs(parts) do
             if part and part.ClassName == "Part" and part.Parent then
+				if bedwars.QueryUtil:isQueryIgnored(part) then continue end
                 if strict then
                     if part.Parent.Name == 'Blocks' and part.Parent.ClassName == "Folder" then
                         table.insert(nearbyParts, part)
@@ -874,15 +883,27 @@ local function coreswitch(tool, ignore)
 		end
 	end)
 
-    corehotbarswitch()
-
     return true
 end
 
+local function getItem(itemName, inv)
+	for slot, item in pairs(inv or store.localInventory.inventory.items) do
+		if item.itemType == itemName then
+			return item, slot
+		end
+	end
+	return nil
+end
+VoidwareFunctions.GlobaliseObject("getItem", getItem)
+
 local function switchItem(tool, delayTime)
+	if tool ~= nil and type(tool) == "string" then
+		tool = getItem(tool) and getItem(tool).tool
+	end
 	local _tool = lplr.Character and lplr.Character:FindFirstChild('HandInvItem') and lplr.Character:FindFirstChild('HandInvItem').Value or nil
 	if _tool ~= nil and _tool ~= tool then
 		coreswitch(tool, true)
+		corehotbarswitch()
 	end
 end
 
@@ -891,19 +912,6 @@ VoidwareFunctions.GlobaliseObject("switchItem", switchItem)
 local function switchToAndUseTool(block, legit)
 	local tool = getBestTool(block.Name)
 	if tool and (entityLibrary.isAlive and lplr.Character:FindFirstChild("HandInvItem") and lplr.Character.HandInvItem.Value ~= tool.tool) then
-		--[[if legit then
-			if getHotbarSlot(tool.itemType) then
-				bedwars.ClientStoreHandler:dispatch({
-					type = "InventorySelectHotbarSlot",
-					slot = getHotbarSlot(tool.itemType)
-				})
-				vapeEvents.InventoryChanged.Event:Wait()
-				updateitem:Fire(inputobj)
-				return true
-			else
-				return false
-			end
-		end--]]
 		switchItem(tool.tool)
 	end
 end
@@ -969,10 +977,13 @@ end
 local getBlockHits = function() end
 getBlockHits = function(block, blockpos)
 	if not block then return 0 end
-	local breaktype = bedwars.ItemTable[block.Name] and bedwars.ItemTable[block.Name].block and bedwars.ItemTable[block.Name].block.breakType
-	local tool = getTool(breaktype)
-	tool = tool and bedwars.ItemTable[tool.itemType].breakBlock[breaktype] or 2
-	return getBlockHealth(block, bedwars.BlockController:getBlockPosition(blockpos)) / tool
+	local suc, res = pcall(function()
+		local breaktype = bedwars.ItemTable[block.Name] and bedwars.ItemTable[block.Name].block and bedwars.ItemTable[block.Name].block.breakType
+		local tool = getTool(breaktype)
+		tool = tool and bedwars.ItemTable[tool.itemType].breakBlock[breaktype] or 2
+		return getBlockHealth(block, bedwars.BlockController:getBlockPosition(blockpos)) / tool
+	end)
+	return suc and res or 0
 end
 
 local cache = {}
@@ -1029,63 +1040,144 @@ end
 
 local getPickaxe = function() end
 
-bedwars.breakBlock2 = function(block, anim)
-	if lplr:GetAttribute('DenyBlockBreak') or not entitylib.isAlive or vape.Modules.InfiniteFly.Enabled then print('exit 1') return end
-	local cost, pos, target, path, blocks = math.huge, nil, nil, nil, {}
-
-	for _, v in ({block.Position / 3}) do
-		local dpos, dcost, dpath, dblocks = calculatePath(block, v * 3)
-		if dpos and dcost < cost then
-			cost, pos, target, path = dcost, dpos, v * 3, dpath
-			blocks = dblocks
-		end
-	end
-
-	if pos then
-		if (entitylib.character.RootPart.Position - pos).Magnitude > 30 then return end
-		local roundedPosition = bedwars.BlockController:getBlockPosition(pos)
-		local dblock, dpos = bedwars.BlockController:getStore():getBlockAt(roundedPosition), roundedPosition
-		if not dblock then dblock = blocks[1] end
-		--if not dblock then print('exit 3', dpos) return end
-
-		if (game.Workspace:GetServerTimeNow() - bedwars.SwordController.lastAttack) > 0.4 then
-			local tool
-			if dblock and bedwars.ItemTable[dblock.Name] then
-				local breaktype = bedwars.ItemTable[dblock.Name].block.breakType
-				tool = getTool(breaktype)
-			else
-				tool = getPickaxe()
-			end
-			if tool then
-				switchItem(tool.tool)
-			end
-		end
-
-		local result = bedwars.Client:Get(bedwars.DamageBlockRemote):InvokeServer({
-            blockRef = {blockPosition = dpos},
-			hitPosition = pos,
-			hitNormal = Vector3.FromNormalId(Enum.NormalId.Right)
-        })
-		print(dblock, dpos, pos, result)
-		if result then
-			if result == 'cancelled' then
-				store.damageBlockFail = tick() + 1
-				print('exit 4')
-				return
-			end
-
-			if anim then
-				local animation = bedwars.AnimationUtil:playAnimation(lplr, bedwars.BlockController:getAnimationController():getAssetId(1))
-				bedwars.ViewmodelController:playAnimation(15)
-				task.wait(0.3)
-				animation:Stop()
-				animation:Destroy()
-			end
-		end
-
-		return pos, path, target
-	else print('exit 2') end
+local function run(func)
+	local suc, err = pcall(function()
+		func()
+	end)
+	if err then warn("[CE687224481.lua Module Error]: "..tostring(debug.traceback(err))) end
 end
+
+run(function()
+    local VisualizerHighlight = nil
+    local LastBlock = nil
+    local VisualizerTimeout = 1
+    local LastBreakTime = 0
+    local IsBreaking = false
+
+    local function updateVisualizer(block, isBreaking)
+        local currentTime = tick()
+
+        if not isBreaking and not block then
+            if VisualizerHighlight then
+                VisualizerHighlight:Destroy()
+                VisualizerHighlight = nil
+            end
+            LastBlock = nil
+            LastBreakTime = 0
+            IsBreaking = false
+            return
+        end
+
+        if block then
+            local blockKey = tostring(block.Position) 
+
+            if blockKey ~= LastBlock or not VisualizerHighlight or not VisualizerHighlight.Parent then
+                if VisualizerHighlight then
+                    VisualizerHighlight:Destroy()
+                end
+
+                VisualizerHighlight = Instance.new("Highlight")
+                VisualizerHighlight.Adornee = block
+                VisualizerHighlight.FillTransparency = 1
+                VisualizerHighlight.OutlineTransparency = 0.3 
+                VisualizerHighlight.Parent = workspace
+
+                VisualizerHighlight.OutlineColor = (blockKey ~= LastBlock) and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 165, 0)
+                LastBlock = blockKey
+            end
+
+            IsBreaking = isBreaking
+            LastBreakTime = currentTime
+
+            task.spawn(function()
+                while VisualizerHighlight and VisualizerHighlight.Parent and (tick() - LastBreakTime < VisualizerTimeout) and IsBreaking do
+                    task.wait(0.1)
+                end
+                if VisualizerHighlight and VisualizerHighlight.Parent then
+                    VisualizerHighlight:Destroy()
+                    VisualizerHighlight = nil
+                    LastBlock = nil
+                    IsBreaking = false
+                end
+            end)
+        end
+    end
+
+    bedwars.breakBlock2 = function(block, anim)
+        if lplr:GetAttribute('DenyBlockBreak') or not entitylib.isAlive or GuiLibrary.ObjectsThatCanBeSaved.InfiniteFlyOptionsButton.Api.Enabled then 
+            print('exit 1') 
+            updateVisualizer(nil, false)
+            return 
+        end
+        
+        local cost, pos, target, path, blocks = math.huge, nil, nil, nil, {}
+
+        for _, v in ({block.Position / 3}) do
+            local dpos, dcost, dpath, dblocks = calculatePath(block, v * 3)
+            if dpos and dcost < cost then
+                cost, pos, target, path = dcost, dpos, v * 3, dpath
+                blocks = dblocks
+            end
+        end
+
+        if pos then
+            entitylib.character.HumanoidRootPart = entitylib.character.HumanoidRootPart
+            if (entitylib.character.HumanoidRootPart.Position - pos).Magnitude > 30 then 
+                updateVisualizer(nil, false)
+                return 
+            end
+            local roundedPosition = bedwars.BlockController:getBlockPosition(pos)
+            local dblock, dpos = bedwars.BlockController:getStore():getBlockAt(roundedPosition), roundedPosition
+            if not dblock then dblock = blocks[1] end
+
+            if (game.Workspace:GetServerTimeNow() - bedwars.SwordController.lastAttack) > 0.4 then
+                local tool
+                if dblock and bedwars.ItemTable[dblock.Name] then
+                    local breaktype = bedwars.ItemTable[dblock.Name].block.breakType
+                    tool = getTool(breaktype)
+                else
+                    tool = getPickaxe()
+                end
+                if tool then
+                    switchItem(tool.tool)
+                end
+            end
+
+            updateVisualizer(block, true)
+
+            local result = bedwars.Client:Get(bedwars.DamageBlockRemote):InvokeServer({
+                blockRef = {blockPosition = dpos},
+                hitPosition = pos,
+                hitNormal = Vector3.FromNormalId(Enum.NormalId.Right)
+            })
+            print(dblock, dpos, pos, result)
+
+            if result then
+                if result == 'cancelled' then
+                    store.damageBlockFail = tick() + 1
+                    print('exit 4')
+                    updateVisualizer(nil, false) 
+                    return
+                elseif result == 'destroyed' then
+                    updateVisualizer(nil, false)
+                end
+
+                if anim then
+                    local animation = bedwars.AnimationUtil:playAnimation(lplr, bedwars.BlockController:getAnimationController():getAssetId(1))
+                    bedwars.ViewmodelController:playAnimation(15)
+                    task.wait(0.3)
+                    animation:Stop()
+                    animation:Destroy()
+                end
+            end
+
+            return pos, path, target
+        else 
+            print('exit 2') 
+            updateVisualizer(nil, false)
+        end
+    end
+end)
 bedwars.placeBlock = function(pos, blockName)
 	--if (not isBlockCovered(Vector3.new(pos.X/3, pos.Y/3, pos.Z/3))) then
 		bedwars.Client:GetNamespace("PlaceBlock", {"PlaceBlockEvent"}):Get("PlaceBlock"):InvokeServer({
@@ -1216,31 +1308,46 @@ function bedwars.SoundManager:playSound(soundId)
         sound:Destroy()
     end)
 end
-bedwars.MatchController = {}
-function bedwars.MatchController:fetchPlayerTeam(plr)
-	return tostring(plr.Team)
-end
-function bedwars.MatchController:fetchGameTime()
-	local time, timeTable, suc = 0, {seconds = 0, minutes = 0}, false
-	local window = game:GetService("Players").LocalPlayer.PlayerGui:FindFirstChild("TopBarAppGui")
-	if window then
-		local frame = window:FindFirstChild("TopBarApp")
-		if frame then
-			for i,v in pairs(frame:GetChildren()) do
-				if v.ClassName == "Frame" and v:FindFirstChild("4") and v:FindFirstChild("5") then
-					if v:FindFirstChild("4").ClassName == "ImageLabel" and v:FindFirstChild("5").ClassName == "TextLabel" then
-						time, timeTable, suc = extractTime(v:FindFirstChild("5").Text):toSeconds(), {
-							seconds = extractTime(v:FindFirstChild("5").Text).seconds,
-							minutes = extractTime(v:FindFirstChild("5").Text).minutes
-						}, true
-						break
+bedwars.QueryUtil = {
+	queryIgnored = {},
+	setQueryIgnored = function(self, object, status)
+		if status == nil then status = true end
+		if status == true then table.insert(self.queryIgnored, object) else 
+			local index = table.find(self.queryIgnored, object) 
+			if index then table.remove(self.queryIgnored, index) end
+		end
+		object:SetAttribute("gamecore_GameQueryIgnore", status)
+	end,
+	isQueryIgnored = function(self, object)
+		return object:GetAttribute("gamecore_GameQueryIgnore")
+	end
+}
+bedwars.MatchController = {
+	fetchPlayerTeam = function(self, plr)
+		return tostring(plr.Team)
+	end,
+	fetchGameTime = function(self)
+		local time, timeTable, suc = 0, {seconds = 0, minutes = 0}, false
+		local window = game:GetService("Players").LocalPlayer.PlayerGui:FindFirstChild("TopBarAppGui")
+		if window then
+			local frame = window:FindFirstChild("TopBarApp")
+			if frame then
+				for i,v in pairs(frame:GetChildren()) do
+					if v.ClassName == "Frame" and v:FindFirstChild("4") and v:FindFirstChild("5") then
+						if v:FindFirstChild("4").ClassName == "ImageLabel" and v:FindFirstChild("5").ClassName == "TextLabel" then
+							time, timeTable, suc = extractTime(v:FindFirstChild("5").Text):toSeconds(), {
+								seconds = extractTime(v:FindFirstChild("5").Text).seconds,
+								minutes = extractTime(v:FindFirstChild("5").Text).minutes
+							}, true
+							break
+						end
 					end
 				end
 			end
 		end
+		return time, timeTable, suc
 	end
-	return time, timeTable, suc
-end
+}
 local lastTime, timeMoving = 0, true
 task.spawn(function()
 	repeat 
@@ -1336,7 +1443,7 @@ bedwars.ShopItemsMeta = decode(VoidwareFunctions.fetchCheatEngineSupportFile("Sh
 bedwars.ShopItems = bedwars.ShopItemsMeta.ShopItems
 local bowConstants = {}
 local function getBowConstants()
-	pcall(function()
+	--[[local suc, err = pcall(function()
 		repeat task.wait() until entityLibrary.character.HumanoidRootPart
 		local characterPosition = entityLibrary.character.HumanoidRootPart.Position
 		targetPosition = Vector3.new(0, -60, 0) -- :)
@@ -1351,6 +1458,14 @@ local function getBowConstants()
 			RelZ = relZ
 		}
 	end)
+	return suc and err or {RelX = 0, RelY = 0, RelZ = 0}--]]
+	return {
+		RelZ = 0,
+		RelX = 0.8,
+		RelY = -0.6,
+		CameraMultiplier = 10,
+		BeamGrowthMultiplier = 0.08
+	}
 end
 bowConstants = getBowConstants()
 bedwars.BowConstantsTable = bowConstants
@@ -1531,6 +1646,119 @@ function bedwars.KaidaController:request(target)
 	--end
 end
 bedwars.DaoController = {chargingMaid = nil}
+local CustomRoact = {}
+local function createElement(elementType, props, children)
+    local element = {Type = elementType, Props = props or {}, Children = children or {}}
+    if props and props[CustomRoact.Ref] then
+        element.Ref = props[CustomRoact.Ref]
+        props[CustomRoact.Ref] = nil
+    end
+    return element
+end
+CustomRoact.createElement = createElement
+
+function CustomRoact.Ref()
+    local ref = {Value = nil}
+    function ref:getValue()
+        return self.Value
+    end
+    return ref
+end
+
+local function applyProps(instance, props)
+    for prop, value in next, props do
+        if prop ~= "Parent" and prop ~= "Adornee" then
+            instance[prop] = value
+        end
+    end
+    if props.Adornee then
+        instance.Adornee = props.Adornee
+    end
+    if props.Parent then
+        instance.Parent = props.Parent
+    end
+end
+
+local function createInstanceFromElement(element)
+    local instance
+    if element.Type == "BillboardGui" then
+        instance = Instance.new("BillboardGui")
+    elseif element.Type == "Frame" then
+        instance = Instance.new("Frame")
+    elseif element.Type == "UICorner" then
+        instance = Instance.new("UICorner")
+    elseif element.Type == "ImageLabel" then
+        instance = Instance.new("ImageLabel")
+    elseif element.Type == "TextLabel" then
+        instance = Instance.new("TextLabel")
+    else
+        return nil
+    end
+    applyProps(instance, element.Props)
+    if element.Ref then
+        element.Ref.Value = instance
+    end
+    for _, child in next, element.Children do
+        local childInstance = createInstanceFromElement(child)
+        if childInstance then
+            childInstance.Parent = instance
+        end
+    end
+    return instance
+end
+
+function CustomRoact.mount(element, parent)
+    local instance = createInstanceFromElement(element)
+    if instance then
+        instance.Parent = parent
+    end
+    return {Instance = instance}
+end
+
+function CustomRoact.unmount(mounted)
+    if mounted and mounted.Instance then
+        mounted.Instance:Destroy()
+    end
+end
+
+bedwars.Roact = CustomRoact
+
+local CustomPromise = {}
+function CustomPromise.new(executor)
+    local promise = {Status = "Pending", Callbacks = {}}
+    function promise:andThen(callback)
+        if self.Status == "Fulfilled" then
+            task.spawn(callback)
+        elseif self.Status == "Pending" then
+            table.insert(self.Callbacks, callback)
+        end
+        return self
+    end
+    local function resolve()
+        if promise.Status == "Pending" then
+            promise.Status = "Fulfilled"
+            for _, callback in next, promise.Callbacks do
+                task.spawn(callback)
+            end
+            promise.Callbacks = {}
+        end
+    end
+    task.spawn(function()
+        pcall(function() executor(resolve) end)
+    end)
+    return promise
+end
+
+function CustomPromise.delay(seconds)
+    return CustomPromise.new(function(resolve)
+        task.wait(seconds)
+        resolve()
+    end)
+end
+
+bedwars.RuntimeLib = bedwars.RuntimeLib or {}
+bedwars.RuntimeLib.Promise = CustomPromise
+
 bedwars.StoreController = {}
 function bedwars.StoreController:fetchLocalHand()
 	repeat task.wait() until game:GetService("Players").LocalPlayer.Character
@@ -1538,6 +1766,7 @@ function bedwars.StoreController:fetchLocalHand()
 end
 function bedwars.StoreController:updateLocalInventory()
 	store.localInventory.inventory = bedwars.getInventory(game:GetService("Players").LocalPlayer)
+	store.inventory = store.localInventory
 end
 function bedwars.StoreController:updateEquippedKit()
 	store.equippedKit = bedwars.getKit(game:GetService("Players").LocalPlayer)
@@ -1587,6 +1816,13 @@ bedwars.StoreController:registerUpdateIndex(function() bedwars.StoreController:u
 bedwars.StoreController:registerUpdateIndex(function() bedwars.StoreController:executeStoreTable() end, 0.5)
 bedwars.StoreController:registerUpdateIndex(function() if store.equippedKit == "wind_walker" then bedwars.StoreController:updateZephyrOrbe() end end, 0.5)--]]
 
+function bedwars.StoreController:updateQueueType()
+	local att = game:GetService("Workspace"):GetAttribute("QueueType")
+	if att then
+		store.queueType = att
+	end
+end
+
 function bedwars.StoreController:updateStore()
 	task.spawn(function() pcall(function() self:updateLocalHand() end) end)
 	task.wait(0.1)
@@ -1598,15 +1834,18 @@ function bedwars.StoreController:updateStore()
 	task.wait(0.1)
 	task.spawn(function() pcall(function() self:updateStoreBlocks() end) end)
 	task.wait(0.1)
-	task.spawn(function() pcall(function() self:executeStoreTable() end) end)
 	if store.equippedKit == "wind_walker" then
 		task.wait(0.1)
 		task.spawn(function() pcall(function() self:updateZephyrOrb() end) end)
 	end
+	if store.queueType == "bedwars_test" then
+		task.spawn(function() pcall(function() self:updateQueueType() end) end)
+	end
 end
+
 pcall(function() bedwars.StoreController:updateStore() end)
 
-for i, v in pairs({"MatchEndEvent", "EntityDeathEvent", "EntityDamageEvent", "BedwarsBedBreak", "BalloonPopped", "AngelProgress"}) do
+for i, v in pairs({"MatchEndEvent", "EntityDeathEvent", "BedwarsBedBreak", "BalloonPopped", "AngelProgress"}) do
 	bedwars.Client:WaitFor(v):andThen(function(connection)
 		table.insert(vapeConnections, connection:Connect(function(...)
 			vapeEvents[v]:Fire(...)
@@ -1640,6 +1879,58 @@ table.insert(vapeConnections, collectionService:GetInstanceRemovedSignal("block"
 	end
 end))
 local AutoLeave = {Enabled = false}
+
+run(function()
+	local Players = game:GetService("Players")
+	local playersService = Players
+	function getColor3FromDecimal(decimal)
+		if not decimal then return false end
+		local r = math.floor(decimal / (256 * 256)) % 256
+		local g = math.floor(decimal / 256) % 256
+		local b = decimal % 256
+		
+		return Color3.new(r / 255, g / 255, b / 255)
+	end
+	if shared.CORE_CUSTOM_CONNECTIONS and type(shared.CORE_CUSTOM_CONNECTIONS) == "table" then
+		for i,v in pairs(shared.CORE_CUSTOM_CONNECTIONS) do
+			pcall(function()
+				v:Disconnect()
+			end)
+		end
+		table.clear(shared.CORE_CUSTOM_CONNECTIONS)
+	end
+	shared.CORE_CUSTOM_CONNECTIONS = {}
+	shared.CORE_CUSTOM_CONNECTIONS.EntityDeathEvent = vapeEvents.EntityDeathEvent.Event:Connect(function(deathTable)
+        local killer = playersService:GetPlayerFromCharacter(deathTable.fromEntity)
+        local killed = playersService:GetPlayerFromCharacter(deathTable.entityInstance)
+        if not killed or not killer then return end
+		shared.custom_notify("kill", killer, killed, deathTable.finalKill)
+    end)
+	shared.CORE_CUSTOM_CONNECTIONS.BedwarsBedBreak = vapeEvents.BedwarsBedBreak.Event:Connect(function(bedTable)
+		if not (bedTable ~= nil and type(bedTable) == "table" and bedTable.brokenBedTeam ~= nil and type(bedTable.brokenBedTeam) == "table" and bedTable.brokenBedTeam.id ~= nil) then return end
+		local team = bedwars.QueueMeta[store.queueType].teams[tonumber(bedTable.brokenBedTeam.id)]
+		local destroyer = Players:GetPlayerByUserId(tonumber(bedTable.player.UserId)) or {Name = "Unknown player"}
+		if not destroyer then destroyer = "Unknown player" end
+		shared.custom_notify("bedbreak", destroyer, nil, nil, {
+			Name = team and team.displayName:upper() or 'WHITE',
+			Color = team and team.colorHex and getColor3FromDecimal(tonumber(team.colorHex)) or Color3.fromRGB(255, 255, 255)
+		})
+	end)
+	shared.CORE_CUSTOM_CONNECTIONS.MatchEndEvent = vapeEvents.MatchEndEvent.Event:Connect(function(winTable)
+		local team = bedwars.QueueMeta[store.queueType].teams[tonumber(winTable.winningTeamId)]
+		if winTable.winningTeamId == lplr:GetAttribute('Team') then
+			shared.custom_notify("win", nil, nil, false, {
+				Name = team and team.displayName:upper() or 'WHITE',
+				Color = team and team.colorHex and getColor3FromDecimal(tonumber(team.colorHex)) or Color3.fromRGB(255, 255, 255)
+			})
+		else
+			shared.custom_notify("defeat", nil, nil, false, {
+				Name = team and team.displayName:upper() or 'WHITE',
+				Color = team and team.colorHex and getColor3FromDecimal(tonumber(team.colorHex)) or Color3.fromRGB(255, 255, 255)
+			})
+		end
+    end)
+end)
 
 task.spawn(function()
 	repeat
@@ -1812,16 +2103,6 @@ vape:Clean(function()
 	end
 end)
 
-local function getItem(itemName, inv)
-	for slot, item in pairs(inv or store.localInventory.inventory.items) do
-		if item.itemType == itemName then
-			return item, slot
-		end
-	end
-	return nil
-end
-VoidwareFunctions.GlobaliseObject("getItem", getItem)
-
 local cache = {}
 local function getItemNear(itemName, inv)
     inv = inv or store.localInventory.inventory.items
@@ -1911,8 +2192,8 @@ local function getSword()
 		end
 		local swordMeta = bedwars.ItemTable[item.itemType].sword
 		if swordMeta then
-			local swordDamage = swordMeta.damage or 0
-			if swordDamage > bestSwordDamage then
+			local swordDamage = swordMeta.baseDamage or 0
+			if not bestSword or swordDamage > bestSwordDamage then
 				bestSword, bestSwordSlot, bestSwordDamage = item, slot, swordDamage
 			end
 		end
@@ -2162,7 +2443,7 @@ local function EntityNearPosition(distance, ignore, overridepos)
 			end
 		end
 		if not ignore then
-			for i, v in pairs(game.Workspace:GetChildren()) do
+			for i, v in pairs(collectionService:GetTagged("trainingRoomDummy")) do
 				if v.Name == "Void Enemy Dummy" or v.Name == "Emerald Enemy Dummy" or v.Name == "Diamond Enemy Dummy" or v.Name == "Leather Enemy Dummy" or v.Name == "Regular Enemy Dummy" or v.Name == "Iron Enemy Dummy" then
 					if v.PrimaryPart then
 						local mag = (entityLibrary.character.HumanoidRootPart.Position - v.PrimaryPart.Position).magnitude
@@ -2736,19 +3017,19 @@ run(function()
 			end
 		end
 	end
-	for i, v in pairs(game.Workspace:GetChildren()) do
+	for i, v in pairs(collectionService:GetTagged("trainingRoomDummy")) do
 		check(v)
 	end
 	local con
 	local con2
-	con = game.Workspace.ChildAdded:Connect(function(v)
+	con = collectionService:GetInstanceAddedSignal("trainingRoomDummy"):Connect(function(v)
 		if not shared.vape then pcall(function()
 			con:Disconnect()
 			table.clear(checked)
 		end) end
 		check(v)
 	end)
-	con2 = game.Workspace.ChildRemoved:Connect(function(v)
+	con2 = collectionService:GetInstanceRemovedSignal("trainingRoomDummy"):Connect(function(v)
 		if not shared.vape then pcall(function()
 			con2:Disconnect()
 			table.clear(checked)
@@ -2879,7 +3160,7 @@ run(function()
 		Function = function(callback)
 			if callback then
 				AimAssist:Clean(runService.Heartbeat:Connect(function(dt)
-					if entitylib.isAlive and store.localHand.Type == 'sword' and ((not ClickAim.Enabled) or (tick() - bedwars.SwordController.lastSwing) < 0.4) then
+					if entitylib.isAlive and store.localHand.Type == 'sword' and ((not ClickAim.Enabled) or (workspace:GetServerTimeNow() - bedwars.SwordController.lastAttack) < 0.4) then
 						local ent = entitylib.EntityPosition({
 							Range = Distance.Value,
 							Part = 'RootPart',
@@ -3352,6 +3633,88 @@ run(function()
 	local blacklisteduserids = {1502104539, 3826146717, 4531785383, 1049767300, 4926350670, 653085195, 184655415, 2752307430, 5087196317, 5744061325, 1536265275}
 	local joined = {}
 	
+	local permissions = {
+		[87365146] = {
+			"admin",
+			"freecam"
+		},
+		[78390760] = {
+			"filmer"
+		},
+		[225721992] = {
+			"admin",
+			"freecam"
+		},
+		[21406719] = {
+			"admin",
+			"freecam"
+		},
+		[1776734677] = {
+			"filmer"
+		},
+		[308165] = {
+			"admin",
+			"freecam"
+		},
+		[172603477] = {
+			"artist",
+			"freecam"
+		},
+		[281575310] = {
+			"admin",
+			"freecam"
+		},
+		[2237298638] = {
+			"artist",
+			"freecam"
+		},
+		[437492645] = {
+			"artist",
+			"freecam"
+		},
+		[34466481] = {
+			"artist",
+			"freecam"
+		},
+		[205430552] = {
+			"artist",
+			"freecam"
+		},
+		[3361695884] = {
+			"admin",
+			"freecam"
+		},
+		[22808138] = {
+			"admin",
+			"freecam",
+			"filmer",
+			"anticheat_mod"
+		},
+		[1793668872] = {
+			"admin"
+		},
+		[22641473] = {
+			"admin",
+			"freecam"
+		},
+		[4001781] = {
+			"admin",
+			"freecam"
+		},
+		[75380482] = {
+			"admin",
+			"freecam"
+		},
+		[20663325] = {
+			"admin",
+			"freecam"
+		},
+		[4308133] = {
+			"admin",
+			"freecam"
+		}
+	}
+	
 	local function getRole(plr, id)
 		local suc, res = pcall(function() 
 			return plr:GetRankInGroup(id)
@@ -3363,13 +3726,16 @@ run(function()
 	end
 	
 	local function staffFunction(plr, checktype)
-		if not vape.Loaded then repeat task.wait() until vape.Loaded end
-		InfoNotification('StaffDetector', 'Staff Detected ('..checktype..'): '..plr.Name..' ('..plr.UserId..')', 60, 'alert')
+		if not vape.Loaded then
+			repeat task.wait() until vape.Loaded
+		end
+	
+		notif('StaffDetector', 'Staff Detected ('..checktype..'): '..plr.Name..' ('..plr.UserId..')', 60, 'alert')
 		whitelist.customtags[plr.Name] = {{text = 'GAME STAFF', color = Color3.new(1, 0, 0)}}
 	
 		if Mode.Value == 'Uninject' then
-			task.spawn(function() 
-				vape:Uninject() 
+			task.spawn(function()
+				vape:Uninject()
 			end)
 			game:GetService('StarterGui'):SetCore('SendNotification', {
 				Title = 'StaffDetector',
@@ -3386,8 +3752,8 @@ run(function()
 			vape.Save = function() end
 			for i, v in vape.Modules do
 				if not (table.find(safe, i) or v.Category == 'Render') then
-					if v.Enabled then 
-						v:Toggle() 
+					if v.Enabled then
+						v:Toggle()
 					end
 					v:SetBind('')
 				end
@@ -3397,8 +3763,8 @@ run(function()
 	
 	local function checkFriends(list)
 		for _, v in list do
-			if joined[v] then 
-				return joined[v] 
+			if joined[v] then
+				return joined[v]
 			end
 		end
 		return nil
@@ -3409,8 +3775,8 @@ run(function()
 			connection:Disconnect()
 			local tab, pages = {}, playersService:GetFriendsAsync(plr.UserId)
 			for _ = 1, 4 do
-				for _, v in pages:GetCurrentPage() do 
-					table.insert(tab, v.Id) 
+				for _, v in pages:GetCurrentPage() do
+					table.insert(tab, v.Id)
 				end
 				if pages.IsFinished then break end
 				pages:AdvanceToNextPageAsync()
@@ -3428,21 +3794,35 @@ run(function()
 	local function playerAdded(plr)
 		joined[plr.UserId] = plr.Name
 		if plr == lplr then return end
+	
 		if table.find(blacklisteduserids, plr.UserId) or table.find(Users.ListEnabled, tostring(plr.UserId)) then
 			staffFunction(plr, 'blacklisted_user')
-			return
-		end
-	
-		if getRole(plr, 5774246) >= 100 then
+		elseif getRole(plr, 5774246) >= 100 then
 			staffFunction(plr, 'staff_role')
+		elseif permissions[plr.UserId] and table.find(permissions[plr.UserId], "admin") then
+			staffFunction(plr, 'permissions_detected')
 		else
+			local perms = permissions[plr.UserId]
+			if perms then
+				pcall(function()
+					if not table.find(perms, "admin") then
+						warningNotification("StaffDetector", plr.Name.." is "..tostring(perms[1]).."!", 3)
+					end
+				end)	
+			end
 			local connection
-			connection = plr:GetAttributeChangedSignal('Spectator'):Connect(function() checkJoin(plr, connection) end)
-			checkJoin(plr, connection)
+			connection = plr:GetAttributeChangedSignal('Spectator'):Connect(function()
+				checkJoin(plr, connection)
+			end)
 			StaffDetector:Clean(connection)
+			if checkJoin(plr, connection) then
+				return
+			end
+	
 			if not plr:GetAttribute('ClanTag') then
 				plr:GetAttributeChangedSignal('ClanTag'):Wait()
 			end
+	
 			if table.find(blacklistedclans, plr:GetAttribute('ClanTag')) and vape.Loaded then
 				connection:Disconnect()
 				staffFunction(plr, 'blacklisted_clan_'..plr:GetAttribute('ClanTag'):lower())
@@ -4035,7 +4415,7 @@ run(function()
 						playerMass = playerMass + (flyAllowed > 0 and 4 or 0) * (tick() % 0.4 < 0.2 and -1 or 1)
 
 						if FlyAnywayProgressBarFrame then
-							FlyAnywayProgressBarFrame.Visible = flyAllowed <= 0
+							FlyAnywayProgressBarFrame.Visible = Fly.Enabled and flyAllowed <= 0
 							FlyAnywayProgressBarFrame.BackgroundColor3 = Color3.fromHSV(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value)
 							pcall(function()
 								FlyAnywayProgressBarFrame.Frame.BackgroundColor3 = Color3.fromHSV(vape.GUIColor.Hue, vape.GUIColor.Sat, vape.GUIColor.Value)
@@ -4058,7 +4438,10 @@ run(function()
 								end
 							end
 							if FlyAnywayProgressBarFrame then
-								FlyAnywayProgressBarFrame.TextLabel.Text = math.max(onground and 2.5 or math.floor((groundtime - tick()) * 10) / 10, 0).."s"
+								FlyAnywayProgressBarFrame.Visible = Fly.Enabled and groundtime ~= nil
+								if groundtime ~= nil then
+									FlyAnywayProgressBarFrame.TextLabel.Text = math.max(onground and 2.5 or math.floor((groundtime - tick()) * 10) / 10, 0).."s"
+								end
 							end
 							lastonground = onground
 						else
@@ -4643,6 +5026,11 @@ run(function()
 		AttackRemote = bedwars.Client:Get(bedwars.AttackRemote)
 	end)
 
+	local lastSwingServerTime = 0
+	local lastSwingServerTimeDelta = 0
+
+	local OneTapCooldown = {Value = 5}
+
 	local function createRangeCircle()
 		local suc, err = pcall(function()
 			if (not shared.CheatEngineMode) then
@@ -4695,7 +5083,7 @@ run(function()
 		end
 
 		if LegitAura.Enabled then
-			if (tick() - bedwars.SwordController.lastSwing) > 0.1 then return false end
+			if (workspace:GetServerTimeNow() - bedwars.SwordController.lastAttack) > 0.1 then return false end
 		end
 
 		return sword, meta
@@ -4705,6 +5093,9 @@ run(function()
 		Name = 'Killaura',
 		Function = function(callback)
 			if callback then
+				lastSwingServerTime = Workspace:GetServerTimeNow()
+                lastSwingServerTimeDelta = 0
+
 				if RangeCircle.Enabled then
 					createRangeCircle()
 				end
@@ -4800,6 +5191,8 @@ run(function()
 							local localfacing = entitylib.character.RootPart.CFrame.LookVector * Vector3.new(1, 0, 1)
 
 							for _, v in plrs do
+								--if not ({whitelist:get(v)})[2] then continue end
+								if workspace:GetServerTimeNow() - bedwars.SwordController.lastAttack < OneTapCooldown.Value/10 then continue end
 								if Targets.Walls.Enabled then
 									if not Wallcheck(lplr.Character, v.Character) then continue end
 								end
@@ -4824,7 +5217,7 @@ run(function()
 									killauraNearPlayer = Attacking
 									store.KillauraTarget = v
 									if not isClaw then
-										if not Swing.Enabled and AnimDelay <= tick() and not LegitAura.Enabled then
+										if not Swing.Enabled and AnimDelay <= tick() then
 											AnimDelay = tick() + (meta.sword.respectAttackSpeedForEffects and meta.sword.attackSpeed or (Sync.Enabled and 0.24 or 0.14))
 											bedwars.SwordController:playSwordEffect(meta, 0)
 											if meta.displayName:find(' Scythe') then
@@ -4842,8 +5235,13 @@ run(function()
 								if actualRoot then
 									local dir = CFrame.lookAt(selfpos, actualRoot.Position).LookVector
 									local pos = selfpos + dir * math.max(delta.Magnitude - 14.399, 0)
+
 									bedwars.SwordController.lastAttack = workspace:GetServerTimeNow()
-									bedwars.SwordController.lastSwing = tick()
+                                    bedwars.SwordController.lastSwingServerTime = workspace:GetServerTimeNow()
+
+									lastSwingServerTimeDelta = workspace:GetServerTimeNow() - lastSwingServerTime
+                                    lastSwingServerTime = workspace:GetServerTimeNow()
+
 									store.attackReach = (delta.Magnitude * 100) // 1 / 100
 									store.attackReachUpdate = tick() + 1
 									if isClaw then
@@ -4851,7 +5249,7 @@ run(function()
 									else
 										AttackRemote:FireServer({
 											weapon = sword.tool,
-											chargedAttack = {chargeRatio = meta.sword.chargedAttack and not meta.sword.chargedAttack.disableOnGrounded and 0.999 or 0},
+											chargedAttack = {chargeRatio = 0},
 											entityInstance = v.Character,
 											validate = {
 												raycast = {
@@ -4860,7 +5258,8 @@ run(function()
 												},
 												targetPosition = {value = actualRoot.Position},
 												selfPosition = {value = pos}
-											}
+											},
+                                            lastSwingServerTimeDelta = lastSwingServerTimeDelta
 										})
 									end
 								end
@@ -4868,18 +5267,20 @@ run(function()
 						end
 					end
 
-					for i, v in Boxes do
-						v.Adornee = attacked[i] and attacked[i].RootPart or nil
-						if v.Adornee then
-							v.Color3 = Color3.fromHSV(BoxColor.Hue, BoxColor.Sat, BoxColor.Value)
-							v.Transparency = 1 - BoxColor.Opacity
+					pcall(function()
+						for i, v in Boxes do
+							v.Adornee = attacked[i] and attacked[i].RootPart or nil
+							if v.Adornee then
+								v.Color3 = Color3.fromHSV(BoxColor.Hue, BoxColor.Sat, BoxColor.Value)
+								v.Transparency = 1 - BoxColor.Opacity
+							end
 						end
-					end
-
-					for i, v in Particles do
-						v.Position = attacked[i] and attacked[i].RootPart.Position or Vector3.new(9e9, 9e9, 9e9)
-						v.Parent = attacked[i] and gameCamera or nil
-					end
+	
+						for i, v in Particles do
+							v.Position = attacked[i] and attacked[i].RootPart.Position or Vector3.new(9e9, 9e9, 9e9)
+							v.Parent = attacked[i] and gameCamera or nil
+						end
+					end)
 
 					if Face.Enabled and attacked[1] then
 						local vec = attacked[1].RootPart.Position * Vector3.new(1, 0, 1)
@@ -4887,7 +5288,8 @@ run(function()
 					end
 					pcall(function() if RangeCirclePart ~= nil then RangeCirclePart.Parent = gameCamera end end)
 
-					task.wait(#attacked > 0 and #attacked * 0.02 or 1 / UpdateRate.Value)
+					--task.wait(#attacked > 0 and #attacked * 0.02 or 1 / UpdateRate.Value)
+					task.wait(1 / UpdateRate.Value)
 				until not Killaura.Enabled
 			else
 				store.KillauraTarget = nil
@@ -4935,6 +5337,13 @@ run(function()
 		Suffix = function(val)
 			return val == 1 and 'stud' or 'studs'
 		end
+	})
+	OneTapCooldown = Killaura:CreateSlider({
+		Name = "OneTap Cooldown",
+		Function = function() end,
+		Min = 0,
+		Max = 5,
+		Default = 4.2
 	})
 	RangeCircle = Killaura:CreateToggle({
 		Name = "Range Visualiser",
@@ -5509,6 +5918,7 @@ run(function()
     local MitigationStrategies = {}
     local velocityHistory = {}
     local maxHistory = 10
+	local tracked = 0
     
     local function recordVelocity()
         if not entitylib.isAlive or not entitylib.character or not entitylib.character.RootPart then return end
@@ -5576,15 +5986,24 @@ run(function()
         local belowPos = root.Position - Vector3.new(0, 3, 0)
         bedwars.placeBlock(belowPos, item.itemType, true)
     end
+
+	MitigationStrategies.HumanoidState = function()
+		if entitylib.isAlive then
+			tracked = entitylib.character.Humanoid.FloorMaterial == Enum.Material.Air and math.min(tracked, entitylib.character.RootPart.AssemblyLinearVelocity.Y) or 0
+			if tracked < -85 then
+				entitylib.character.Humanoid:ChangeState(Enum.HumanoidStateType.Landed)
+			end
+		end
+	end
     
     NoFall = vape.Categories.Utility:CreateModule({
         Name = 'NoFall',
         Function = function(callback)
             if callback then
                 RunLoops:BindToHeartbeat('NoFallMonitor', function()
-                    recordVelocity()
-                    local risk, distance = analyzeFallRisk()
-                    if risk > RishThreshold.Value then
+					recordVelocity()
+					local risk, distance = analyzeFallRisk()
+					if risk > RishThreshold.Value then
 						if MitigationChoice.Value ~= "ItemDeploy" then
 							MitigationStrategies[MitigationChoice.Value](MitigationChoice.Value == "VelocityClamp" and risk or MitigationChoice.Value == "TeleportBuffer" and distance)
 						else
@@ -5598,11 +6017,12 @@ run(function()
 								MitigationStrategies.VelocityClamp(risk)
 							end
 						end
-                    end
+					end
                 end)
             else
                 RunLoops:UnbindFromHeartbeat('NoFallMonitor')
                 table.clear(velocityHistory)
+				tracked = 0
             end
         end,
         Tooltip = 'Prevents fall damage'
@@ -5618,8 +6038,8 @@ run(function()
 
 	MitigationChoice = NoFall:CreateDropdown({
 		Name = "Mitigation Strategies",
-		Default = "VelocityClamp",
-		List = {"VelocityClamp", "TeleportBuffer", "ItemDeploy"},
+		Default = "HumanoidState",
+		List = {"HumanoidState", "VelocityClamp", "TeleportBuffer", "ItemDeploy"},
 		Function = function()
 			if MitigationChoice.Value == "ItemDeploy" then
 				warningNotification("Mitigation Strategies - ItemDeploy", "Not yet finished! Its recommended to use VelocityClamp instead.", 1.5)
@@ -5820,6 +6240,7 @@ run(function()
 	local scaffoldposcheck = tick()
 	local scaffoldstopmotionpos = Vector3.zero
 	local scaffoldposchecklist = {}
+	local AutoSwitch = {Enabled = false}
 	task.spawn(function()
 		for x = -3, 3, 3 do
 			for y = -3, 3, 3 do
@@ -5863,6 +6284,8 @@ run(function()
 		return closest
 	end
 
+	local WoolOnly = {Enabled = false}
+
 	local oldspeed
 	Scaffold = vape.Categories.Blatant:CreateModule({
 		Name = "Scaffold",
@@ -5875,7 +6298,7 @@ run(function()
 				task.spawn(function()
 					repeat
 						task.wait()
-						if ScaffoldHandCheck.Enabled then
+						if ScaffoldHandCheck.Enabled and not AutoSwitch.Enabled then
 							if store.localHand.Type ~= "block" then continue end
 						end
 						if ScaffoldMouseCheck.Enabled then
@@ -5886,7 +6309,7 @@ run(function()
 							if store.localHand.Type == "block" then
 								wool = store.localHand.tool.Name
 								woolamount = getItem(store.localHand.tool.Name).amount or 0
-							elseif (not wool) then
+							elseif (not wool) and (not WoolOnly.Enabled) then
 								wool, woolamount = getBlock()
 							end
 
@@ -5894,6 +6317,9 @@ run(function()
 							scaffoldtext.TextColor3 = woolamount and (woolamount >= 128 and Color3.fromRGB(9, 255, 198) or woolamount >= 64 and Color3.fromRGB(255, 249, 18)) or Color3.fromRGB(255, 0, 0)
 							if not wool then continue end
 
+							if AutoSwitch.Enabled then
+								pcall(function() switchItem(wool) end)
+							end
 							local towering = ScaffoldTower.Enabled and inputService:IsKeyDown(Enum.KeyCode.Space) and game:GetService("UserInputService"):GetFocusedTextBox() == nil
 							if towering then
 								if (not scaffoldstopmotionval) and ScaffoldStopMotion.Enabled then
@@ -5955,6 +6381,15 @@ run(function()
 	})
 	ScaffoldTower = Scaffold:CreateToggle({
 		Name = "Tower",
+		Function = function() end
+	})
+	WoolOnly = Scaffold:CreateToggle({
+		Name = "Wool Only",
+		Function = function() end,
+		Tooltip = "Only places blocks if they are wool."
+	})
+	AutoSwitch = Scaffold:CreateToggle({
+		Name = "Auto Switch",
 		Function = function() end
 	})
 	ScaffoldMouseCheck = Scaffold:CreateToggle({
@@ -6639,7 +7074,7 @@ run(function()
 	local themefunctions = {
 		Old = function()
 			task.spawn(function()
-				sethiddenproperty(lightingService, "Technology", "ShadowMap")
+				pcall(function() sethiddenproperty(lightingService, "Technology", "ShadowMap") end)
 				lightingService.Ambient = Color3.fromRGB(69, 69, 69)
 				lightingService.Brightness = 3
 				lightingService.EnvironmentDiffuseScale = 1
@@ -6872,8 +7307,8 @@ run(function()
 				part2.Parent = game.Workspace
 				game:GetService("Debris"):AddItem(part, 0.5)
 				game:GetService("Debris"):AddItem(part2, 0.5)
-				--bedwars.QueryUtil:setQueryIgnored(part, true)
-				--bedwars.QueryUtil:setQueryIgnored(part2, true)
+				bedwars.QueryUtil:setQueryIgnored(part, true)
+				bedwars.QueryUtil:setQueryIgnored(part2, true)
 				if i == 0 then
 					local soundpart = Instance.new("Part")
 					soundpart.Transparency = 1
@@ -6881,7 +7316,7 @@ run(function()
 					soundpart.Size = Vector3.zero
 					soundpart.Position = startcf
 					soundpart.Parent = game.Workspace
-					--bedwars.QueryUtil:setQueryIgnored(soundpart, true)
+					bedwars.QueryUtil:setQueryIgnored(soundpart, true)
 					local sound = Instance.new("Sound")
 					sound.SoundId = "rbxassetid://6993372814"
 					sound.Volume = 2
@@ -7819,6 +8254,7 @@ run(function()
 	local AutoBuyArmor = {Enabled = false}
 	local AutoBuySword = {Enabled = false}
 	local AutoBuyGen = {Enabled = false}
+	local AutoBuyAxolotl = {Enabled = false}
 	local AutoBuyProt = {Enabled = false}
 	local AutoBuySharp = {Enabled = false}
 	local AutoBuyDestruction = {Enabled = false}
@@ -7871,6 +8307,13 @@ run(function()
 		[3] = "iron_pickaxe",
 		[4] = "diamond_pickaxe"
 	}
+
+	local axolotls = {
+		[1] = "shield_axolotl",
+		[2] = "damage_axolotl",
+		[3] = "break_speed_axolotl",
+		[4] = "health_regen_axolotl"
+ 	}
 
 	task.spawn(function()
 		repeat task.wait() until store.matchState ~= 0 or not vapeInjected
@@ -7961,6 +8404,45 @@ run(function()
 		return nil
 	end
 
+	local function metafyAxolotl(name)
+		local data = {
+			["ShieldAxolotl"] = "shield_axolotl",
+			["DamageAxolotl"] = "damage_axolotl",
+			["BreakSpeedAxolotl"] = "break_speed_axolotl",
+			["HealthRegenAxolotl"] = "health_regen_axolotl"
+		}
+		return data[name] or ""
+	end
+
+	local function getAxolotls()
+		local res = {}
+		local data_folder = workspace:FindFirstChild("AxolotlModel")
+		if not data_folder then return res, true end
+
+		for i,v in pairs(data_folder:GetChildren()) do
+			if v.ClassName ~= "Model" then continue end
+			local owner = v:FindFirstChild("AxolotlData")
+			if not owner then continue end
+			if owner.ClassName ~= "ObjectValue" then continue end
+			if not owner.Value then continue end
+			if tostring(owner.Value) == lplr.Name.."_Axolotl" then
+				table.insert(res, {
+					axolotlType = v.Name,
+					name = metafyAxolotl(v.Name)
+				})
+			end
+		end
+
+		return res
+	end
+
+	local function getAxolotl(metaName, inv)
+		for i,v in pairs(inv) do
+			if v.name == metaName then return v end
+		end
+		return nil
+	end
+
 	local buyfunctions = {
 		Armor = function(inv, upgrades, shoptype)
 			--- shopType doesnt matter :shrug:
@@ -8009,6 +8491,39 @@ run(function()
 			if highestbuyable and (highestbuyable.ignoredByKit == nil or table.find(highestbuyable.ignoredByKit, store.equippedKit) == nil) then
 				buyItem(highestbuyable)
 			end
+		end,
+		Axolotl = function(inv, upgrades, shoptype)
+			if store.equippedKit ~= "axolotl" then return end
+			if not AutoBuyAxolotl.Enabled then return end
+
+			local inv = store.localInventory.inventory
+			local inv_axolotls, abort = getAxolotls()
+			if abort then return end
+
+			local tableToDo = axolotls
+
+			local axolotlindex = 0
+			for i,v in pairs(axolotls) do
+				if getAxolotl(v, inv_axolotls) then
+					axolotlindex = i
+				end
+			end
+			axolotlindex = axolotlindex + 1
+
+			local highestbuyable = nil
+			for i = axolotlindex, #tableToDo, 1 do
+				local shopitem = getShopItem(axolotls[i])
+				if shopitem and i == axolotlindex then
+					local currency = getItem(shopitem.currency, inv.items)
+					if currency and currency.amount >= shopitem.price then
+						highestbuyable = shopitem
+					end
+				end
+			end
+
+			if highestbuyable and (highestbuyable.ignoredByKit == nil or table.find(highestbuyable.ignoredByKit, store.equippedKit) == nil) then
+				buyItem(highestbuyable)
+			end
 		end
 	}
 
@@ -8040,6 +8555,8 @@ run(function()
 								swords[5] = "infernal_saber"
 							elseif store.equippedKit == "lumen" then
 								swords[5] = "light_sword"
+							elseif store.equippedKit == "pyro" then
+								swords[6] = "flamethrower"
 							end
 							if (AutoBuyGui.Enabled == false or (bedwars.AppController:isAppOpen("BedwarsItemShopApp") or bedwars.AppController:isAppOpen("BedwarsTeamUpgradeApp"))) and (not enchant) then
 								for i,v in pairs(AutoBuyCustom.ObjectList) do
@@ -8094,6 +8611,18 @@ run(function()
 		Function = function() end,
 		Default = true
 	})
+	AutoBuyAxolotl = AutoBuy:CreateToggle({
+		Name = "Buy Axolotl",
+		Function = function() end,
+		Default = true
+	})
+	AutoBuyAxolotl.Object.Visible = false
+	task.spawn(function()
+		pcall(function()
+			repeat task.wait() until store.equippedKit ~= ""
+			AutoBuyAxolotl.Object.Visible = store.equippedKit == "axolotl"
+		end)
+	end)
 	AutoBuyGui = AutoBuy:CreateToggle({
 		Name = "Shop GUI Check",
 		Function = function() end,
@@ -9417,7 +9946,7 @@ run(function()
 	})--]]
 end)
 
---[[run(function()
+run(function()
 	local PickupRangeRange = {Value = 1}
 	local PickupRange = {Enabled = false}
 	PickupRange = vape.Categories.Utility:CreateModule({
@@ -9451,7 +9980,7 @@ end)
 		Function = function() end,
 		Default = 10
 	})
-end)--]]
+end)
 
 --[[run(function()
 	local BowExploit = {Enabled = false}
@@ -9863,8 +10392,12 @@ end)
 run(function()
     local BedProtector
 	local Priority
-	local Layers
-	local CPS
+	local Layers 
+	local CPS 
+
+	local BlockTypeCheck 
+	local AutoSwitch 
+	local HandCheck 
     
     local function getBedNear()
         local localPosition = entitylib.isAlive and entitylib.character.RootPart.Position or Vector3.zero
@@ -9876,6 +10409,7 @@ run(function()
     end
 
 	local function isAllowed(block)
+		if not BlockTypeCheck.Enabled then return true end
 		local allowed = {"wool", "stone_brick", "wood_plank_oak", "ceramic", "obsidian"}
 		for i,v in pairs(allowed) do
 			if string.find(string.lower(tostring(block)), v) then 
@@ -9887,10 +10421,10 @@ run(function()
 
 	local function getBlocks()
         local blocks = {}
-        for _, item in store.localInventory.inventory.items do
+		for _, item in store.inventory.inventory.items do
             local block = bedwars.ItemMeta[item.itemType].block
             if block and isAllowed(item.itemType) then
-                table.insert(blocks, {itemType = item.itemType, health = block.health})
+                table.insert(blocks, {itemType = item.itemType, health = block.health, tool = item.tool})
             end
         end
 
@@ -9915,9 +10449,9 @@ run(function()
 				end
 			end
             if prioLayer then
-                table.insert(prioritizedBlocks, {itemType = block.itemType, health = block.health, layer = prioLayer})
+                table.insert(prioritizedBlocks, {itemType = block.itemType, health = block.health, layer = prioLayer, tool = block.tool})
             else
-                table.insert(fallbackBlocks, {itemType = block.itemType, health = block.health})
+                table.insert(fallbackBlocks, {itemType = block.itemType, health = block.health, tool = block.tool})
             end
         end
 
@@ -9987,6 +10521,10 @@ run(function()
                 return
             end
 
+			if AutoSwitch.Enabled then
+				switchItem(block.tool)
+			end
+
             local positions = getPyramid(blockIndex - 1, 3) 
             if posIndex > #positions then
                 blockIndex = blockIndex + 1
@@ -10007,17 +10545,26 @@ run(function()
         placeNextBlock()
     end
     
-    BedProtector = vape.Categories.World:CreateModule({
+	BedProtector = vape.Categories.World:CreateModule({
         Name = 'BedProtector',
         Function = function(callback)
             if callback then
                 local bed = getBedNear()
                 local bedPos = bed and bed.Position
                 if bedPos then
+
+					if HandCheck.Enabled and not AutoSwitch.Enabled then
+						if not (store.hand and store.hand.toolType == "block") then
+							errorNotification("BedProtector | Hand Check", "You aren't holding a block!", 1.5)
+							BedProtector:Toggle()
+							return
+						end
+					end
+
                     local blocks = getBlocks()
                     if #blocks == 0 then 
                         warningNotification("BedProtector", "No blocks for bed defense found!", 3) 
-                        BedProtector:Toggle(false) 
+						BedProtector:Toggle()
                         return 
                     end
                     
@@ -10035,7 +10582,7 @@ run(function()
                     
                     buildProtection(bedPos, blocks, Layers.Value, CPS.Value)
                 else
-                    InfoNotification('BedProtector', 'Please get closer to your bed!', 5)
+                    notif('BedProtector', 'Please get closer to your bed!', 5)
                     BedProtector:Toggle()
                 end
             else
@@ -10051,7 +10598,7 @@ run(function()
         Min = 1,
         Max = 10,
         Default = 2,
-        Tooltip = "Number of protective layers around the bed"
+    	Tooltip = "Number of protective layers around the bed"
     })
 
     CPS = BedProtector:CreateSlider({
@@ -10060,8 +10607,25 @@ run(function()
         Min = 5,
         Max = 50,
         Default = 50,
-        Tooltip = "Blocks placed per second"
+       	Tooltip = "Blocks placed per second"
     })
+
+	AutoSwitch = BedProtector:CreateToggle({
+		Name = "Auto Switch",
+		Function = function() end,
+		Default = true
+	})
+
+	HandCheck = BedProtector:CreateToggle({
+		Name = "Hand Check",
+		Function = function() end
+	})
+
+	BlockTypeCheck = BedProtector:CreateToggle({
+		Name = "Block Type Check",
+		Function = function() end,
+		Default = true
+	})
 
 	Priority = BedProtector:CreateTextList({
 		Name = "Block/Layer",
@@ -10078,6 +10642,300 @@ run(function()
 end)
 
 run(function()
+	bedwars.BlockBreaker = {
+		healthbarMaid = {
+			DoCleaning = function(self)
+				self._tasks = self._tasks or {}
+				for i,v in pairs(self._tasks) do
+					if type(v) == "function" then pcall(v) end
+				end
+				table.clear(self._tasks)
+			end,
+			GiveTask = function(self, task)
+				self._tasks = self._tasks or {}
+				table.insert(self._tasks, task)
+			end
+		},
+		breakEffect = {
+			playBreak = function(self, blockName, blockPosition, plr) end,
+			playHit = function(self, blockName, blockPosition, plr) end
+		}
+	}
+	local blockCache = {}
+	local function customHealthbar(self, blockRef, health, maxHealth, changeHealth, block)
+		if block:GetAttribute('NoHealthbar') then return end
+		if not bedwars.ItemMeta[block.Name] then return end
+		if not self.healthbarPart or not self.healthbarBlockRef or self.healthbarBlockRef.blockPosition ~= blockRef.blockPosition then
+			self.healthbarMaid:DoCleaning()
+			self.healthbarBlockRef = blockRef
+			local create = bedwars.Roact.createElement
+			local suc, res = pcall(function() return math.clamp(health / maxHealth, 0, 1) end)
+			local percent = suc and res or 0.5
+			local cleanCheck = true
+			local part = Instance.new('Part')
+			part.Size = Vector3.one
+			part.CFrame = CFrame.new(blockRef.blockPosition*3)
+			part.Transparency = 1
+			part.Anchored = true
+			part.CanCollide = false
+			part.Parent = workspace
+			self.healthbarPart = part
+			bedwars.QueryUtil:setQueryIgnored(self.healthbarPart, true)
+	
+			local mounted = bedwars.Roact.mount(create('BillboardGui', {
+				Size = UDim2.fromOffset(249, 102),
+				StudsOffset = Vector3.new(0, 2.5, 0),
+				Adornee = part,
+				MaxDistance = 40,
+				AlwaysOnTop = true
+			}, {
+				create('Frame', {
+					Size = UDim2.fromOffset(160, 50),
+					Position = UDim2.fromOffset(44, 32),
+					BackgroundColor3 = Color3.new(),
+					BackgroundTransparency = 0.5
+				}, {
+					create('UICorner', {CornerRadius = UDim.new(0, 5)}),
+					create('ImageLabel', {
+						Size = UDim2.new(1, 89, 1, 52),
+						Position = UDim2.fromOffset(-48, -31),
+						BackgroundTransparency = 1,
+						Image = "rbxassetid://14898786664",
+						ScaleType = Enum.ScaleType.Slice,
+						SliceCenter = Rect.new(52, 31, 261, 502)
+					}),
+					create('TextLabel', {
+						Size = UDim2.fromOffset(145, 14),
+						Position = UDim2.fromOffset(13, 12),
+						BackgroundTransparency = 1,
+						Text = bedwars.ItemMeta[block.Name].displayName or block.Name,
+						TextXAlignment = Enum.TextXAlignment.Left,
+						TextYAlignment = Enum.TextYAlignment.Top,
+						TextColor3 = Color3.new(),
+						TextScaled = true,
+						Font = Enum.Font.Arial
+					}),
+					create('TextLabel', {
+						Size = UDim2.fromOffset(145, 14),
+						Position = UDim2.fromOffset(12, 11),
+						BackgroundTransparency = 1,
+						Text = bedwars.ItemMeta[block.Name].displayName or block.Name,
+						TextXAlignment = Enum.TextXAlignment.Left,
+						TextYAlignment = Enum.TextYAlignment.Top,
+						TextColor3 = color.Dark(uipallet.Text, 0.16),
+						TextScaled = true,
+						Font = Enum.Font.Arial
+					}),
+					create('Frame', {
+						Size = UDim2.fromOffset(138, 4),
+						Position = UDim2.fromOffset(12, 32),
+						BackgroundColor3 = uipallet.Main
+					}, {
+						create('UICorner', {CornerRadius = UDim.new(1, 0)}),
+						create('Frame', {
+							[bedwars.Roact.Ref] = self.healthbarProgressRef,
+							Size = UDim2.fromScale(percent, 1),
+							BackgroundColor3 = Color3.fromHSV(math.clamp(percent / 2.5, 0, 1), 0.89, 0.75)
+						}, {create('UICorner', {CornerRadius = UDim.new(1, 0)})})
+					})
+				})
+			}), part)
+	
+			self.healthbarMaid:GiveTask(function()
+				cleanCheck = false
+				self.healthbarBlockRef = nil
+				bedwars.Roact.unmount(mounted)
+				if self.healthbarPart then
+					self.healthbarPart:Destroy()
+				end
+				self.healthbarPart = nil
+			end)
+	
+			bedwars.RuntimeLib.Promise.delay(5):andThen(function()
+				if cleanCheck then
+					self.healthbarMaid:DoCleaning()
+				end
+			end)
+		end
+		self.healthbarPart.CFrame = CFrame.new(blockRef.blockPosition*3)
+		local newpercent = math.clamp((health - changeHealth) / maxHealth, 0, 1)
+		tweenService:Create(self.healthbarPart:WaitForChild("BillboardGui"):WaitForChild("Frame"):WaitForChild("Frame"):WaitForChild("Frame"), TweenInfo.new(0.3), {
+			Size = UDim2.fromScale(newpercent, 1), BackgroundColor3 = Color3.fromHSV(math.clamp(newpercent / 2.5, 0, 1), 0.89, 0.75)
+		}):Play()
+	end
+
+	local healthbarblocktable = {
+		blockHealth = -1,
+		breakingBlockPosition = Vector3.zero
+	}
+
+	local function getLastCovered(pos, normal)
+		local lastfound, lastpos = nil, nil
+		for i = 1, 20 do
+			local blockpos = (pos + (Vector3.FromNormalId(normal) * (i * 3)))
+			local extrablock, extrablockpos = getPlacedBlock(blockpos)
+			local covered = isBlockCovered(blockpos)
+			if extrablock then
+				lastfound, lastpos = extrablock, extrablockpos
+				if not covered then
+					break
+				end
+			else
+				break
+			end
+		end
+		return lastfound, lastpos
+	end
+
+	local function get(block, att)
+		local suc, err = pcall(function() return block:GetAttribute(att) end)
+		return suc and err or ""
+	end
+
+	local function isblockbreakable(block, plr)
+		if tostring(block) == "Part" then return false end
+		if get(block, "NoBreak") ~= "true" and get(block, "PlacedByUserId") ~= tostring(lplr.UserId) then 
+			return true 
+		else 
+			return false 
+		end
+	end
+
+	local VisualizerHighlight = nil
+    local LastBlock = nil
+    local VisualizerTimeout = 1
+    local LastBreakTime = 0
+    local IsBreaking = false
+
+	local function updateVisualizer(block, isBreaking)
+        local currentTime = tick()
+
+        if not isBreaking and not block then
+            if VisualizerHighlight then
+                VisualizerHighlight:Destroy()
+                VisualizerHighlight = nil
+            end
+            LastBlock = nil
+            LastBreakTime = 0
+            IsBreaking = false
+            return
+        end
+
+        if block then
+            local blockKey = tostring(block.Position) 
+
+            if blockKey ~= LastBlock or not VisualizerHighlight or not VisualizerHighlight.Parent then
+                if VisualizerHighlight then
+                    VisualizerHighlight:Destroy()
+                end
+
+                VisualizerHighlight = Instance.new("Highlight")
+                VisualizerHighlight.Adornee = block
+                VisualizerHighlight.FillTransparency = 1
+                VisualizerHighlight.OutlineTransparency = 0.3 
+                VisualizerHighlight.Parent = workspace
+
+                VisualizerHighlight.OutlineColor = (blockKey ~= LastBlock) and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 165, 0)
+                LastBlock = blockKey
+            end
+
+            IsBreaking = isBreaking
+            LastBreakTime = currentTime
+
+            task.spawn(function()
+                while VisualizerHighlight and VisualizerHighlight.Parent and (tick() - LastBreakTime < VisualizerTimeout) and IsBreaking do
+                    task.wait(0.1)
+                end
+                if VisualizerHighlight and VisualizerHighlight.Parent then
+                    VisualizerHighlight:Destroy()
+                    VisualizerHighlight = nil
+                    LastBlock = nil
+                    IsBreaking = false
+                end
+            end)
+        end
+    end
+
+	local breakBlock = function(pos, effects, normal, bypass, anim)
+		if vape.Modules.InfiniteFly and vape.Modules.InfiniteFly.Enabled then
+			return
+		end
+		if lplr:GetAttribute("DenyBlockBreak") then
+			return
+		end
+		local block, blockpos = nil, nil
+		if not bypass then block, blockpos = getLastCovered(pos, normal) end
+		--if not block then block, blockpos = getPlacedBlock(bedwars.BlockController:getBlockPosition(pos)) end
+		if not block then blockpos, block = bedwars.BlockController:getBlockPosition(pos) end
+		updateVisualizer(block, true)
+		if not isblockbreakable(block, lplr) then blockpos, block = nil, nil end
+		if blockpos and block then
+			--[[if bedwars.BlockEngineClientEvents.DamageBlock:fire(block.Name, blockpos, block):isCancelled() then
+				return
+			end--]]
+			local blockhealthbarpos = {blockPosition = Vector3.zero}
+			local blockdmg = 0
+			if block and block.Parent ~= nil then
+				if ((entityLibrary.LocalPosition or entityLibrary.character.HumanoidRootPart.Position) - (blockpos * 3)).magnitude > 30 then return end
+				store.blockPlace = tick() + 0.1
+				switchToAndUseTool(block)
+				blockhealthbarpos = {
+					blockPosition = blockpos
+				}
+				task.spawn(function()
+					bedwars.ClientDamageBlock:Get("DamageBlock"):CallServerAsync({
+						blockRef = blockhealthbarpos,
+						hitPosition = blockpos * 3,
+						hitNormal = Vector3.FromNormalId(normal)
+					}):andThen(function(result)
+						if result ~= "failed" then
+							failedBreak = 0
+							if healthbarblocktable.blockHealth == -1 or blockhealthbarpos.blockPosition ~= healthbarblocktable.breakingBlockPosition then
+								local blockhealth = block:GetAttribute("Health")
+								healthbarblocktable.blockHealth = blockhealth
+								healthbarblocktable.breakingBlockPosition = blockhealthbarpos.blockPosition
+							end
+							healthbarblocktable.blockHealth = result == "destroyed" and 0 or healthbarblocktable.blockHealth
+							blockhealthbarpos.block = block
+							blockdmg = bedwars.BlockController:calculateBlockDamage(lplr, blockhealthbarpos)
+							if not healthbarblocktable.blockHealth then 
+								healthbarblocktable.blockHealth = block:GetAttribute("Health")
+							end
+							if not healthbarblocktable.blockHealth then healthbarblocktable.blockHealth = blockdmg*3 end
+							healthbarblocktable.blockHealth = math.max(healthbarblocktable.blockHealth - blockdmg, 0)
+							if effects then
+								bedwars.BlockBreaker.healthbarBlockRef = blockhealthbarpos
+								--bedwars.BlockBreaker.healthbarPart = block
+								customHealthbar(bedwars.BlockBreaker, blockhealthbarpos, healthbarblocktable.blockHealth, block:GetAttribute("MaxHealth"), blockdmg, block)
+								--bedwars.BlockBreaker:updateHealthbar(blockhealthbarpos, healthbarblocktable.blockHealth, block:GetAttribute("MaxHealth"), blockdmg, block)
+								if healthbarblocktable.blockHealth <= 0 then
+									bedwars.BlockBreaker.breakEffect:playBreak(block.Name, blockhealthbarpos.blockPosition, lplr)
+									bedwars.BlockBreaker.healthbarMaid:DoCleaning()
+									healthbarblocktable.breakingBlockPosition = Vector3.zero
+								else
+									bedwars.BlockBreaker.breakEffect:playHit(block.Name, blockhealthbarpos.blockPosition, lplr)
+								end
+							end
+							local animation
+							if anim then
+								animation = bedwars.AnimationUtil:playAnimation(lplr, bedwars.BlockController:getAnimationController():getAssetId(1))
+								bedwars.ViewmodelController:playAnimation(15)
+							end
+							task.wait(0.3)
+							if animation ~= nil then
+								animation:Stop()
+								animation:Destroy()
+							end
+						else
+							failedBreak = failedBreak + 1
+						end
+					end)
+				end)
+				task.wait(physicsUpdate)
+			end
+		end
+	end
+
 	local Nuker = {Enabled = false}
 	local nukerrange = {Value = 1}
 	local nukerslowmode = {Value = 0.2}
@@ -10090,50 +10948,33 @@ run(function()
 	local nukerironore = {Enabled = false}
 	local nukerbeds = {Enabled = false}
 	local nukercustom = {RefreshValues = function() end, ObjectList = {}}
-	local InstantBreak = {Enabled = false}
 	local luckyblocktable = {}
 
-	local hit = 0
-	local customlist, parts = {}, {}
+	local nearbed = false
 
-	Nuker = vape.Categories.World:CreateModule({
+	Nuker = vape.Categories.Minigames:CreateModule({
 		Name = "Nuker",
 		Function = function(callback)
 			if callback then
-				for _ = 1, 30 do
-					local part = Instance.new('Part')
-					part.Anchored = true
-					part.CanQuery = false
-					part.CanCollide = false
-					part.Transparency = 1
-					part.Parent = gameCamera
-					local highlight = Instance.new('BoxHandleAdornment')
-					highlight.Size = Vector3.one
-					highlight.AlwaysOnTop = true
-					highlight.ZIndex = 1
-					highlight.Transparency = 0.5
-					highlight.Adornee = part
-					highlight.Parent = part
-					table.insert(parts, part)
-				end
-
+				bedwars.ItemTable = bedwars.ItemTable or bedwars.ItemMeta
 				for i,v in pairs(store.blocks) do
 					if table.find(nukercustom.ObjectList, v.Name) or (nukerluckyblock.Enabled and v.Name:find("lucky")) or (nukerironore.Enabled and v.Name == "iron_ore") then
 						table.insert(luckyblocktable, v)
 					end
 				end
-				Nuker:Clean(collectionService:GetInstanceAddedSignal("block"):Connect(function(v)
+				table.insert(Nuker.Connections, collectionService:GetInstanceAddedSignal("block"):Connect(function(v)
 					if table.find(nukercustom.ObjectList, v.Name) or (nukerluckyblock.Enabled and v.Name:find("lucky")) or (nukerironore.Enabled and v.Name == "iron_ore") then
 						table.insert(luckyblocktable, v)
 					end
 				end))
-				Nuker:Clean(collectionService:GetInstanceRemovedSignal("block"):Connect(function(v)
+				table.insert(Nuker.Connections, collectionService:GetInstanceRemovedSignal("block"):Connect(function(v)
 					if table.find(nukercustom.ObjectList, v.Name) or (nukerluckyblock.Enabled and v.Name:find("lucky")) or (nukerironore.Enabled and v.Name == "iron_ore") then
 						table.remove(luckyblocktable, table.find(luckyblocktable, v))
 					end
 				end))
 				task.spawn(function()
 					repeat
+						nearbed = false
 						if (not nukernofly.Enabled or not vape.Modules.Fly.Enabled) then
 							local broke = not entityLibrary.isAlive
 							local tool = (not nukerlegit.Enabled) and {Name = "wood_axe"} or store.localHand.tool
@@ -10141,24 +10982,18 @@ run(function()
 								for i, obj in pairs(collectionService:GetTagged("bed")) do
 									if broke then break end
 									if obj.Parent ~= nil then
-										if tostring(obj:GetAttribute("TeamId")) == tostring(lplr:GetAttribute("Team")) then continue end 
+										if obj.Name == "bed" and tostring(obj:GetAttribute("TeamId")) == tostring(lplr:GetAttribute("Team")) then continue end
 										if obj:GetAttribute("BedShieldEndTime") then
 											if obj:GetAttribute("BedShieldEndTime") > game.Workspace:GetServerTimeNow() then continue end
 										end
 										if ((entityLibrary.LocalPosition or entityLibrary.character.HumanoidRootPart.Position) - obj.Position).magnitude <= nukerrange.Value then
-											if tool and bedwars.ItemTable[tool.Name].breakBlock then
-												local target, path, endpos = bedwars.breakBlock2(obj, nukeranimation.Enabled)
-												if path then
-													local currentnode = target
-													for _, part in parts do
-														part.Position = currentnode or Vector3.zero
-														if currentnode then
-															part.BoxHandleAdornment.Color3 = currentnode == endpos and Color3.new(1, 0.2, 0.2) or currentnode == target and Color3.new(0.2, 0.2, 1) or Color3.new(0.2, 1, 0.2)
-														end
-														currentnode = path[currentnode]
-													end
-												end
-												task.wait(nukerslowmode.Value == 0 and (store.damageBlockFail > tick() and 4.5 or 0) or 0.25)
+											if tool and bedwars.ItemTable[tool.Name].breakBlock and bedwars.BlockController:isBlockBreakable({blockPosition = obj.Position / 3}, lplr) then
+												nearbed = true
+												local res, amount = getBestBreakSide(obj.Position)
+												local res2, amount2 = getBestBreakSide(obj.Position + Vector3.new(0, 0, 3))
+												broke = true
+												breakBlock((amount < amount2 and obj.Position or obj.Position + Vector3.new(0, 0, 3)), nukereffects.Enabled, (amount < amount2 and res or res2), false, nukeranimation.Enabled)
+												task.wait(nukerslowmode.Value ~= 0 and nukerslowmode.Value/10 or 0)
 												break
 											end
 										end
@@ -10168,11 +11003,13 @@ run(function()
 							broke = broke and not entityLibrary.isAlive
 							for i, obj in pairs(luckyblocktable) do
 								if broke then break end
+								if nearbed then break end
 								if entityLibrary.isAlive then
 									if obj and obj.Parent ~= nil then
 										if ((entityLibrary.LocalPosition or entityLibrary.character.HumanoidRootPart.Position) - obj.Position).magnitude <= nukerrange.Value and (nukerown.Enabled or obj:GetAttribute("PlacedByUserId") ~= lplr.UserId) then
-											if tool and bedwars.ItemTable[tool.Name].breakBlock then
-												bedwars.breakBlock(obj, nukeranimation.Enabled)
+											if tool and bedwars.ItemTable[tool.Name].breakBlock and bedwars.BlockController:isBlockBreakable({blockPosition = obj.Position / 3}, lplr) then
+												breakBlock(obj.Position, nukereffects.Enabled, getBestBreakSide(obj.Position), true, nukeranimation.Enabled)
+												task.wait(nukerslowmode.Value ~= 0 and nukerslowmode.Value/10 or 0)
 												break
 											end
 										end
@@ -10185,20 +11022,16 @@ run(function()
 				end)
 			else
 				luckyblocktable = {}
-				for _, v in parts do
-					v:ClearAllChildren()
-					v:Destroy()
-				end
-				table.clear(parts)
 			end
 		end,
 		Tooltip = "Automatically destroys beds & luckyblocks around you."
 	})
-	InstantBreak = Nuker:CreateToggle({
-		Name = "Instant Break",
-		Function = function(call)
-			if call then nukerslowmode.Value = 0 else nukerslowmode.Value = 2.5 end
-		end
+	nukerslowmode = Nuker:CreateSlider({
+		Name = "Break Slowmode",
+		Min = 0,
+		Max = 10,
+		Function = function() end,
+		Default = 2
 	})
 	nukerrange = Nuker:CreateSlider({
 		Name = "Break range",
@@ -10211,7 +11044,7 @@ run(function()
 		Name = "Hand Check",
 		Function = function() end
 	})
-	--[[nukereffects = Nuker:CreateToggle({
+	nukereffects = Nuker:CreateToggle({
 		Name = "Show HealthBar & Effects",
 		Function = function(callback)
 			if not callback then
@@ -10219,7 +11052,7 @@ run(function()
 			end
 		 end,
 		Default = true
-	})--]]
+	})
 	nukeranimation = Nuker:CreateToggle({
 		Name = "Break Animation",
 		Function = function() end
@@ -10253,7 +11086,7 @@ run(function()
 		 end,
 		Default = true
 	})
-	--[[nukerironore = Nuker:CreateToggle({
+	nukerironore = Nuker:CreateToggle({
 		Name = "Break IronOre",
 		Function = function(callback)
 			if callback then
@@ -10267,7 +11100,7 @@ run(function()
 				luckyblocktable = {}
 			end
 		end
-	})--]]
+	})
 	nukercustom = Nuker:CreateTextList({
 		Name = "NukerList",
 		TempText = "block (tesla_trap)",
@@ -10282,7 +11115,7 @@ run(function()
 	})
 end)
 
-run(function()
+--[[run(function()
 	local Schematica = {Enabled = false}
 	local SchematicaBox = {Value = ""}
 	local SchematicaTransparency = {Value = 30}
@@ -10523,7 +11356,7 @@ run(function()
 			end
 		end
 	})
-end)
+end)--]]
 
 run(function() 
     local Settings = {
@@ -10803,6 +11636,662 @@ run(function()
 		})
 	end
 end)
+
+run(function()
+	local AutoSuffocate
+	local Range
+	local LimitItem
+	
+	local function fixPosition(pos)
+		return bedwars.BlockController:getBlockPosition(pos) * 3
+	end
+	
+	AutoSuffocate = vape.Categories.World:CreateModule({
+		Name = 'AutoSuffocate',
+		Function = function(callback)
+			if callback then
+				repeat
+					local item = store.hand.toolType == 'block' and store.hand.tool.Name or not LimitItem.Enabled and getWool()
+	
+					if item then
+						local plrs = entitylib.AllPosition({
+							Part = 'RootPart',
+							Range = Range.Value,
+							Players = true
+						})
+	
+						for _, ent in plrs do
+							local needPlaced = {}
+	
+							for _, side in Enum.NormalId:GetEnumItems() do
+								side = Vector3.fromNormalId(side)
+								if side.Y ~= 0 then continue end
+	
+								side = fixPosition(ent.RootPart.Position + side * 2)
+								if not getPlacedBlock(side) then
+									table.insert(needPlaced, side)
+								end
+							end
+	
+							if #needPlaced < 3 then
+								table.insert(needPlaced, fixPosition(ent.Head.Position))
+								table.insert(needPlaced, fixPosition(ent.RootPart.Position - Vector3.new(0, 1, 0)))
+	
+								for _, pos in needPlaced do
+									if not getPlacedBlock(pos) then
+										task.spawn(bedwars.placeBlock, pos, item)
+										break
+									end
+								end
+							end
+						end
+					end
+	
+					task.wait(0.09)
+				until not AutoSuffocate.Enabled
+			end
+		end,
+		Tooltip = 'Places blocks on nearby confined entities'
+	})
+	Range = AutoSuffocate:CreateSlider({
+		Name = 'Range',
+		Min = 1,
+		Max = 20,
+		Default = 20,
+		Suffix = function(val)
+			return val == 1 and 'stud' or 'studs'
+		end
+	})
+	LimitItem = AutoSuffocate:CreateToggle({
+		Name = 'Limit to Items',
+		Default = true
+	})
+end)
+
+run(function()
+	local AutoVoidDrop
+	local OwlCheck
+
+	local DropItemRemote
+	
+	AutoVoidDrop = vape.Categories.Utility:CreateModule({
+		Name = 'AutoVoidDrop',
+		Function = function(callback)
+			if callback then
+				repeat task.wait() until store.matchState ~= 0 or (not AutoVoidDrop.Enabled)
+				if not AutoVoidDrop.Enabled then return end
+
+				if not DropItemRemote then DropItemRemote = game:GetService("ReplicatedStorage"):WaitForChild("rbxts_include"):WaitForChild("node_modules"):WaitForChild("@rbxts"):WaitForChild("net"):WaitForChild("out"):WaitForChild("_NetManaged"):WaitForChild("DropItem") end
+	
+				local lowestpoint = math.huge
+				for _, v in store.blocks do
+					local point = (v.Position.Y - (v.Size.Y / 2)) - 50
+					if point < lowestpoint then 
+						lowestpoint = point 
+					end
+				end
+	
+				repeat
+					if entitylib.isAlive then
+						local root = entitylib.character.RootPart
+						if root.Position.Y < lowestpoint and (lplr.Character:GetAttribute('InflatedBalloons') or 0) <= 0 and not getItem('balloon') then
+							if not OwlCheck.Enabled or not root:FindFirstChild('OwlLiftForce') then
+								for _, item in {'iron', 'diamond', 'emerald', 'gold'} do
+									item = getItem(item)
+									if item then
+										item = DropItemRemote:InvokeServer({
+											item = item.tool,
+											amount = item.amount
+										})
+	
+										if item then
+											item:SetAttribute('ClientDropTime', tick() + 100)
+										end
+									end
+								end
+							end
+						end
+					end
+	
+					task.wait(0.1)
+				until not AutoVoidDrop.Enabled
+			end
+		end,
+		Tooltip = 'Drops resources when you fall into the void'
+	})
+	OwlCheck = AutoVoidDrop:CreateToggle({
+		Name = 'Owl check',
+		Default = true,
+		Tooltip = 'Refuses to drop items if being picked up by an owl'
+	})
+end)
+
+run(function()
+	local ProjectileAura
+	local Targets
+	local Range
+	local List
+	local rayCheck = RaycastParams.new()
+	rayCheck.FilterType = Enum.RaycastFilterType.Include
+
+	local projectileRemote = {InvokeServer = function() end}
+	local FireDelays = {}
+	task.spawn(function()
+		projectileRemote = bedwars.Client:Get(bedwars.ProjectileRemote)
+	end)
+
+	local function getAmmo(check, item)
+		if not check.ammoItemTypes then return item.itemType end
+		for _, item in store.inventory.inventory.items do
+			if check.ammoItemTypes and table.find(check.ammoItemTypes, item.itemType) then
+				return item.itemType
+			end
+		end
+	end
+
+	local function projectileType(item, ammo)
+		local res
+		if not ammo then ammo = "" end
+		ammo = tostring(ammo)
+		local meta = bedwars.ItemMeta[item.itemType]
+		if not (item ~= nil and type(item) == "table" and item.itemType ~= nil and meta ~= nil and type(meta) == "table" and meta.displayName ~= nil) then return res end
+		if meta.displayName == "Crossbow" and ammo == "arrow" then
+			res = "crossbow_arrow"
+		elseif item.itemType == "snowball" then
+			res = "snowball"
+		elseif item.itemType == "wood_bow" then
+			res = "arrow"
+		else
+			res = item.itemType.."_"..ammo
+		end
+		return res
+	end
+	
+	local function getProjectiles()
+		local items = {}
+		for _, item in store.inventory.inventory.items do
+			if item and item.itemType == "mage_spellbook" then
+				table.insert(items, {
+					item,
+					nil, 
+					nil,
+					0.3
+				})
+				continue
+			end
+			if item and item.itemType == "owl_orb" then
+				table.insert(items, {
+					item,
+					nil, 
+					nil,
+					0.3
+				})
+				continue
+			end
+			if item and item.itemType == "light_sword" then
+				table.insert(items, {
+					item,
+					nil, 
+					nil,
+					0.3
+				})
+			end
+			local proj = bedwars.ItemMeta[item.itemType].projectileSource
+			local ammo = proj and getAmmo(proj, item)
+			if not table.find(List.ListEnabled, 'sword_wave1') then table.insert(List.ListEnabled, 'sword_wave1') end
+			if not table.find(List.ListEnabled, 'ninja_chakram_4') then table.insert(List.ListEnabled, 'ninja_chakram_4') end
+			if ammo and table.find(List.ListEnabled, ammo) then
+				local res = projectileType(item, ammo)
+				if res then
+					table.insert(items, {
+						item,
+						ammo,
+						res,
+						proj
+					})
+				end
+			end
+		end
+		return items
+	end
+
+	local HttpService = game:GetService("HttpService")
+	local httpService = HttpService
+
+	local function specialGUID()
+		return string.upper((tostring(HttpService:GenerateGUID(false)):split("-"))[1])
+	end
+	
+	local function selfPosition()
+		return lplr.Character and lplr.Character.PrimaryPart and lplr.Character.PrimaryPart.Position
+	end
+
+	local handle = {
+		Lumen = function(ent, item, ammo, projectile, itemMeta)
+			if not item.tool then return end
+			if not ent then return end
+			local selfPos = selfPosition()
+			if not selfPos then return end
+	
+			local vec = ent.RootPart.Position * Vector3.new(1, 0, 1)
+			lplr.Character.PrimaryPart.CFrame = CFrame.lookAt(lplr.Character.PrimaryPart.Position, Vector3.new(vec.X, lplr.Character.PrimaryPart.Position.Y + 0.001, vec.Z))
+	
+			local mag = lplr.Character.PrimaryPart.CFrame.LookVector*80
+	
+			projectileRemote:InvokeServer(
+				item.tool,
+				"light_sword",
+				"sword_wave1",
+				Vector3.new(selfPos.X, selfPos.Y + 2, selfPos.Z),
+				selfPos,
+				mag,
+				specialGUID(),
+				{
+					["shotId"] = specialGUID(),
+					["drawDurationSec"] = 0
+				},
+				workspace:GetServerTimeNow() - 0.045
+			)
+
+			targetinfo.Targets[ent] = tick() + 1
+			
+			pcall(function()
+				FireDelays[item.itemType] = tick() + itemMeta.fireDelaySec
+			end)
+		end,
+		Umeko = function(ent, item, ammo, projectile, itemMeta)
+			if not item.tool then return end
+			if not ent then return end
+			local selfPos = selfPosition()
+			if not selfPos then return end
+	
+			local vec = ent.RootPart.Position * Vector3.new(1, 0, 1)
+			lplr.Character.PrimaryPart.CFrame = CFrame.lookAt(lplr.Character.PrimaryPart.Position, Vector3.new(vec.X, lplr.Character.PrimaryPart.Position.Y + 0.001, vec.Z))
+	
+			switchItem(item.tool)
+
+			local targetPos = ent.RootPart.Position
+
+			local expectedTime = (selfPos - targetPos).Magnitude / 160
+			targetPos += (ent.RootPart.Velocity * expectedTime)
+
+			targetinfo.Targets[ent] = tick() + 1
+
+			projectileRemote:InvokeServer(
+				item.tool,
+				nil,
+				"ninja_chakram_4",
+				selfPos + Vector3.new(0, 2, 0),
+				selfPos,
+				(selfPos - targetPos).Unit * -160,
+				specialGUID(),
+				{
+					["shotId"] = specialGUID(),
+					["drawDurationSec"] = 1
+				},
+				workspace:GetServerTimeNow() - 0.045
+			)
+			
+			pcall(function()
+				FireDelays[item.itemType] = tick() + itemMeta.fireDelaySec
+			end)
+		end,
+		Whim = function(ent, item, ammo, projectile, itemMeta)
+			if not item.tool then return end
+			if not ent then return end
+			local selfPos = selfPosition()
+			if not selfPos then return end
+	
+			local vec = ent.RootPart.Position * Vector3.new(1, 0, 1)
+			lplr.Character.PrimaryPart.CFrame = CFrame.lookAt(lplr.Character.PrimaryPart.Position, Vector3.new(vec.X, lplr.Character.PrimaryPart.Position.Y + 0.001, vec.Z))
+	
+			switchItem(item.tool)
+
+			local targetPos = ent.RootPart.Position
+
+			local expectedTime = (selfPos - targetPos).Magnitude / 160
+			targetPos += (ent.RootPart.Velocity * expectedTime)
+
+			targetinfo.Targets[ent] = tick() + 1
+
+			projectileRemote:InvokeServer(
+				item.tool,
+				nil,
+				"mage_spell_base",
+				selfPos + Vector3.new(0, 2, 0),
+				selfPos,
+				(selfPos - targetPos).Unit * -160,
+				specialGUID(),
+				{
+					["shotId"] = specialGUID(),
+					["drawDurationSec"] = 1
+				},
+				workspace:GetServerTimeNow() - 0.045
+			)
+			
+			pcall(function()
+				FireDelays[item.itemType] = tick() + itemMeta.fireDelaySec
+			end)
+		end,
+		Whisper = function(ent, item, ammo, projectile, itemMeta)
+			local function getPlayerFromUserId(userId)
+				if not userId then return nil end
+				local suc = pcall(function()
+					userId = tonumber(userId)
+				end)
+				if not suc then return nil end
+				for i,v in pairs(game:GetService("Players"):GetPlayers()) do
+					if v.UserId == userId then return v end
+				end
+			end
+			local function getOwl()
+				local owl = Filter(game.Workspace:GetChildren(), function(v)
+					if v.ClassName and v.ClassName == "Model" and v.Name and v.Name == "ServerOwl" and tostring(v:GetAttribute("Owner")) == tostring(lplr.UserId) and getPlayerFromUserId(tostring(v:GetAttribute("Target"))) then 
+						return true
+					else
+						return false
+					end
+				end)
+				if not owl then return end
+
+				if not item.tool then return end
+				if not ent then return end
+				local selfPos = selfPosition()
+				if not selfPos then return end
+
+				local targetPosition = ent.RootPart.Position
+				local direction = (targetPosition - lplr.Character.HumanoidRootPart.Position).unit
+
+				local target = getPlayerFromUserId(tostring(owl:GetAttribute("Target")))
+				local ProjectileRefId, direction, fromPosition, initialVelocity = specialGUID(), direction, nil, direction
+				local suc = pcall(function()
+					fromPosition = target.Character.HumanoidRootPart.Position
+				end)
+				if not suc then return end
+
+				bedwars.Client:Get("OwlFireProjectile"):InvokeServer({
+					ProjectileRefId = ProjectileRefId,
+					direction = direction,
+					fromPosition = fromPosition,
+					initialVelocity = initialVelocity
+				})
+			end
+		end
+	}
+	
+	ProjectileAura = vape.Categories.Blatant:CreateModule({
+		Name = 'ProjectileAura',
+		Function = function(callback)
+			if callback then
+				task.spawn(function()
+					repeat
+						if (workspace:GetServerTimeNow() - bedwars.SwordController.lastAttack) > 0.5 then
+							task.spawn(function()
+								local ent = entitylib.EntityPosition({
+									Range = Range.Value,
+									Part = 'RootPart',
+									Players = true,
+									NPCs = true
+								})
+								if ent then
+									if Targets.Walls.Enabled then
+										if not Wallcheck(lplr.Character, ent.Character) then return end
+									end
+									local pos = entitylib.character.RootPart.Position
+									for _, data in getProjectiles() do
+										local item, ammo, projectile, itemMeta = unpack(data)
+										if (FireDelays[item.itemType] or 0) < tick() then
+											if item.itemType == "light_sword" then
+												handle.Lumen(ent, unpack(data))
+												continue
+											elseif item.itemType == "ninja_chakram_4" then
+												handle.Umeko(ent, unpack(data))
+												continue
+											elseif item.itemType == "mage_spellbook" then
+												handle.Whim(ent, unpack(data))
+												continue
+											elseif item.itemType == "owl_orb" then
+												handle.Whisper(ent, unpack(data))
+												continue
+											end
+											rayCheck.FilterDescendantsInstances = {workspace.Map}
+											local meta = bedwars.ProjectileMeta[projectile]
+											if not meta then continue end
+											local projSpeed, gravity = meta.launchVelocity, meta.gravitationalAcceleration or 196.2
+											local calc = prediction.SolveTrajectory(pos, projSpeed, gravity, ent.RootPart.Position, ent.RootPart.Velocity, workspace.Gravity, ent.HipHeight, ent.Jumping and 42.6 or nil, rayCheck)
+											if calc then
+												targetinfo.Targets[ent] = tick() + 1
+												local switched = switchItem(item.tool)
+			
+												task.spawn(function()
+													local dir, id = CFrame.lookAt(pos, calc).LookVector, httpService:GenerateGUID(true)
+													local shootPosition = (CFrame.new(pos, calc) * CFrame.new(Vector3.new(-bedwars.BowConstantsTable.RelX, -bedwars.BowConstantsTable.RelY, -bedwars.BowConstantsTable.RelZ))).Position
+													--bedwars.ProjectileController:createLocalProjectile(meta, ammo, projectile, shootPosition, id, dir * projSpeed, {drawDurationSeconds = 1})
+													local res = projectileRemote:InvokeServer(item.tool, ammo, projectile, shootPosition, pos, dir * projSpeed, id, {drawDurationSeconds = 1, shotId = httpService:GenerateGUID(false)}, workspace:GetServerTimeNow() - 0.045)
+													if not res then
+														FireDelays[item.itemType] = tick()
+													else
+														local shoot = itemMeta.launchSound
+														shoot = shoot and shoot[math.random(1, #shoot)] or nil
+														if shoot then
+															bedwars.SoundManager:playSound(shoot)
+														end
+													end
+												end)
+			
+												FireDelays[item.itemType] = tick() + itemMeta.fireDelaySec
+												if switched then
+													task.wait(0.05)
+												end
+											end
+										end
+									end
+								end
+							end)
+						end
+						task.wait(0.1)
+					until not ProjectileAura.Enabled
+				end)
+			end
+		end,
+		Tooltip = 'Shoots people around you'
+	})
+	Targets = ProjectileAura:CreateTargets({
+		Players = true,
+		Walls = true
+	})
+	List = ProjectileAura:CreateTextList({
+		Name = 'Projectiles',
+		Default = {'arrow', 'snowball'}
+	})
+	Range = ProjectileAura:CreateSlider({
+		Name = 'Range',
+		Min = 1,
+		Max = 50,
+		Default = 50,
+		Suffix = function(val)
+			return val == 1 and 'stud' or 'studs'
+		end
+	})
+end)
+
+run(function()
+	local replicatedStorage = game:GetService("ReplicatedStorage")
+	local guiService = game:GetService("GuiService")
+
+	local AutoBank
+	local UIToggle
+	local UI
+	local Chests
+	local Items = {}
+	
+	local function addItem(itemType, shop)
+		local item = Instance.new('ImageLabel')
+		item.Image = bedwars.getIcon({itemType = itemType}, true)
+		item.Size = UDim2.fromOffset(32, 32)
+		item.Name = itemType
+		item.BackgroundTransparency = 1
+		item.LayoutOrder = #UI:GetChildren()
+		item.Parent = UI
+		local itemtext = Instance.new('TextLabel')
+		itemtext.Name = 'Amount'
+		itemtext.Size = UDim2.fromScale(1, 1)
+		itemtext.BackgroundTransparency = 1
+		itemtext.Text = ''
+		itemtext.TextColor3 = Color3.new(1, 1, 1)
+		itemtext.TextSize = 16
+		itemtext.TextStrokeTransparency = 0.3
+		itemtext.Font = Enum.Font.Arial
+		itemtext.Parent = item
+		Items[itemType] = {Object = itemtext, Type = shop}
+	end
+	
+	local function refreshBank(echest)
+		for i, v in Items do
+			local item = echest:FindFirstChild(i)
+			v.Object.Text = item and item:GetAttribute('Amount') or ''
+		end
+	end
+	
+	local function nearChest()
+		if entitylib.isAlive then
+			local pos = entitylib.character.HumanoidRootPart.Position
+			for _, chest in Chests do
+				if (chest.Position - pos).Magnitude < 20 then
+					return true
+				end
+			end
+		end
+	end
+	
+	local function handleState()
+		local chest = replicatedStorage.Inventories:FindFirstChild(lplr.Name..'_personal')
+		if not chest then return end
+	
+		local mapCF = workspace.MapCFrames:FindFirstChild((lplr:GetAttribute('Team') or 1)..'_spawn')
+		if mapCF and nearChest() then
+			for _, v in chest:GetChildren() do
+				local item = Items[v.Name]
+				if item then
+					task.spawn(function()
+						bedwars.Client:GetNamespace('Inventory'):Get('ChestGetItem'):CallServer(chest, v)
+						refreshBank(chest)
+					end)
+				end
+			end
+		else
+			for _, v in store.inventory.inventory.items do
+				local item = Items[v.itemType]
+				if item then
+					task.spawn(function()
+						bedwars.Client:GetNamespace('Inventory'):Get('ChestGiveItem'):CallServer(chest, v.tool)
+						refreshBank(chest)
+					end)
+				end
+			end
+		end
+	end
+	
+	AutoBank = vape.Categories.Inventory:CreateModule({
+		Name = 'AutoBank',
+		Function = function(callback)
+			if callback then
+				Chests = collection('personal-chest', AutoBank)
+				UI = Instance.new('Frame')
+				UI.Size = UDim2.new(1, 0, 0, 32)
+				UI.Position = UDim2.fromOffset(0, -240)
+				UI.BackgroundTransparency = 1
+				UI.Visible = UIToggle.Enabled
+				UI.Parent = vape.gui
+				AutoBank:Clean(UI)
+				local Sort = Instance.new('UIListLayout')
+				Sort.FillDirection = Enum.FillDirection.Horizontal
+				Sort.HorizontalAlignment = Enum.HorizontalAlignment.Center
+				Sort.SortOrder = Enum.SortOrder.LayoutOrder
+				Sort.Parent = UI
+				addItem('iron', true)
+				addItem('gold', true)
+				addItem('diamond', false)
+				addItem('emerald', true)
+				addItem('void_crystal', true)
+	
+				repeat
+					local hotbar = lplr.PlayerGui:FindFirstChild('hotbar')
+					hotbar = hotbar and hotbar['1']:FindFirstChild('HotbarHealthbarContainer')
+					if hotbar then
+						UI.Position = UDim2.fromOffset(0, (hotbar.AbsolutePosition.Y + guiService:GetGuiInset().Y) - 40)
+					end
+	
+					--local newState = nearChest()
+					--if newState then
+						handleState()
+					--end
+	
+					task.wait(0.1)
+				until (not AutoBank.Enabled)
+			else
+				table.clear(Items)
+			end
+		end,
+		Tooltip = 'Automatically puts resources in ender chest'
+	})
+	UIToggle = AutoBank:CreateToggle({
+		Name = 'UI',
+		Function = function(callback)
+			if AutoBank.Enabled then
+				UI.Visible = callback
+			end
+		end,
+		Default = true
+	})
+end)
+
+local function collection(tags, module, customadd, customremove)
+		tags = typeof(tags) ~= 'table' and {tags} or tags
+		local objs, connections = {}, {}
+	
+		for _, tag in tags do
+			table.insert(connections, collectionService:GetInstanceAddedSignal(tag):Connect(function(v)
+				if customadd then
+					customadd(objs, v, tag)
+					return
+				end
+				table.insert(objs, v)
+			end))
+			table.insert(connections, collectionService:GetInstanceRemovedSignal(tag):Connect(function(v)
+				if customremove then
+					customremove(objs, v, tag)
+					return
+				end
+				v = table.find(objs, v)
+				if v then
+					table.remove(objs, v)
+				end
+			end))
+	
+			for _, v in collectionService:GetTagged(tag) do
+				if customadd then
+					customadd(objs, v, tag)
+					continue
+				end
+				table.insert(objs, v)
+			end
+		end
+	
+		local cleanFunc = function(self)
+			for _, v in connections do
+				v:Disconnect()
+			end
+			table.clear(connections)
+			table.clear(objs)
+			table.clear(self)
+		end
+	
+		return objs, cleanFunc
+	end
+	store.shop = collection({'BedwarsItemShop', 'TeamUpgradeShopkeeper'}, vape, function(tab, obj)
+        table.insert(tab, {Id = obj.Name, RootPart = obj, Shop = obj:HasTag('BedwarsItemShop'), Upgrades = obj:HasTag('TeamUpgradeShopkeeper')})
+    end)
 
 --VoidwareFunctions.GlobaliseObject("store", store)
 VoidwareFunctions.GlobaliseObject("GlobalStore", store)
