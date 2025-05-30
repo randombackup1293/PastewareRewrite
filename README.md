@@ -1,1 +1,1 @@
-if your shitsploit doesnt work with this buy an awp key
+no loggers, no shitty command system, just straight up pasted code.
